@@ -73,7 +73,7 @@ def process_media_file_upload(file_content, file_format, complain_id, media_type
             key = f"rail_sathi_complain_images/{full_file_name}"
             blob = bucket.blob(key)
             blob.upload_from_file(new_file, content_type='image/jpeg')
-            print(f"rail_sathi_complain_images Image uploaded: {full_file_name}")
+            #print(f"rail_sathi_complain_images Image uploaded: {full_file_name}")
 
         elif media_type == "video":
             try:
@@ -98,7 +98,7 @@ def process_media_file_upload(file_content, file_format, complain_id, media_type
                 blob = bucket.blob(key)
                 with open(compressed_file_path, 'rb') as temp_file:
                     blob.upload_from_file(temp_file, content_type='video/mp4')
-                print(f"rail_sathi_complain_videos Video uploaded: {full_file_name}")
+                #print(f"rail_sathi_complain_videos Video uploaded: {full_file_name}")
             except Exception as e:
                 print(f'Error while storing video: {repr(e)}')
             finally:
@@ -110,7 +110,7 @@ def process_media_file_upload(file_content, file_format, complain_id, media_type
         if blob:
             try:
                 url = blob.public_url
-                print(f"Uploaded file URL: {url}")
+                #print(f"Uploaded file URL: {url}")
                 return url
             except Exception as e:
                 print(f"Failed to get public URL: {e}")
@@ -258,21 +258,21 @@ async def upload_file_async(file_obj: UploadFile, complain_id: int, user: str):
 def test_gcs_connection():
     """Test GCS connection with .env configuration"""
     try:
-        print("=== Testing GCS Connection ===")
-        print(f"Project ID: {PROJECT_ID}")
-        print(f"Bucket Name: {GCS_BUCKET_NAME}")
-        print(f"Credentials Path: {os.getenv('GOOGLE_APPLICATION_CREDENTIALS')}")
+        #print("=== Testing GCS Connection ===")
+        #print(f"Project ID: {PROJECT_ID}")
+        #print(f"Bucket Name: {GCS_BUCKET_NAME}")
+        #print(f"Credentials Path: {os.getenv('GOOGLE_APPLICATION_CREDENTIALS')}")
         
         client = get_gcs_client()
         bucket = client.bucket(GCS_BUCKET_NAME)
         bucket.reload()  # This will fail if no access
         
-        print(f"✓ Successfully connected to bucket: {GCS_BUCKET_NAME}")
-        print(f"✓ Bucket location: {bucket.location}")
-        print(f"✓ Bucket storage class: {bucket.storage_class}")
+        #print(f"✓ Successfully connected to bucket: {GCS_BUCKET_NAME}")
+        #print(f"✓ Bucket location: {bucket.location}")
+        #print(f"✓ Bucket storage class: {bucket.storage_class}")
         return True
     except Exception as e:
-        print(f"✗ Failed to connect to GCS bucket: {e}")
+        #print(f"✗ Failed to connect to GCS bucket: {e}")
         return False
     
 def validate_and_process_train_data(complaint_data):

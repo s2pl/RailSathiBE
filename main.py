@@ -12,6 +12,7 @@ from services import (
     update_complaint, delete_complaint, delete_complaint_media,
     upload_file_thread
 )
+from database import get_db_connection, execute_query
 
 app = FastAPI(
     title="Rail Sathi Complaint API",
@@ -74,6 +75,7 @@ class RailSathiComplainData(BaseModel):
     updated_by: Optional[str]
     # Add the missing fields from your actual data
     train_no: Optional[int]
+    customer_care: Optional[List[str]] = []
     train_depot: Optional[str]
     rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse]
 
@@ -174,9 +176,9 @@ async def create_complaint_endpoint_threaded(
 ):
     """Create new complaint with improved file handling"""
     try:
-        logger.info(f"Creating complaint for user: {name}")
-        logger.info(f"Number of files received: {len(rail_sathi_complain_media_files)}")
-        logger.info(f"Request data: {{"
+        print(f"Creating complaint for user: {name}")
+        print(f"Number of files received: {len(rail_sathi_complain_media_files)}")
+        print(f"Request data: {{"
                     f"pnr_number: {pnr_number}, "
                     f"is_pnr_validated: {is_pnr_validated}, "
                     f"name: {name}, "
@@ -212,14 +214,59 @@ async def create_complaint_endpoint_threaded(
             "created_by": name
         }
         
+        # Initialize default values
+        train_depot_name = ''
+        war_room_phones = []
+        
+        # Step 1: Get depot information
+        if train_number:
+            get_depot_query = f"""
+                SELECT "Depot" FROM trains_traindetails 
+                WHERE train_no = '{train_number}' LIMIT 1
+            """
+            conn = get_db_connection()
+            try:
+                depot_result = execute_query(conn, get_depot_query)
+                train_depot_name = depot_result[0]['Depot'] if depot_result and len(depot_result) > 0 else ''
+                print(f"Train depot found: {train_depot_name}")
+            except Exception as e:
+                logger.error(f"Error fetching depot: {str(e)}")
+                train_depot_name = ''
+            finally:
+                conn.close()
+
+            # Step 2: Fetch war room users whose `depo` matches the train depot
+            if train_depot_name:
+                war_room_user_query = f"""
+                    SELECT u.phone
+                    FROM user_onboarding_user u
+                    JOIN user_onboarding_roles ut ON u.user_type_id = ut.id
+                    WHERE ut.name = 'war room user'
+                    AND u.depo LIKE '%{train_depot_name}%'
+                    AND u.phone IS NOT NULL
+                    AND u.phone != ''
+                """
+
+                conn = get_db_connection()
+                try:
+                    war_room_user_in_depot = execute_query(conn, war_room_user_query)
+                    # Extract phone numbers into a list
+                    war_room_phones = [row['phone'] for row in war_room_user_in_depot if row.get('phone')]
+                    print(f"War room phones found: {war_room_phones}")
+                except Exception as e:
+                    logger.error(f"Error fetching war room users: {str(e)}")
+                    war_room_phones = []
+                finally:
+                    conn.close()
+        
         # Create complaint
         complaint = create_complaint(complaint_data)
         complain_id = complaint["complain_id"]
-        logger.info(f"Complaint created with ID: {complain_id}")
+        print(f"Complaint created with ID: {complain_id}")
         
         # Handle file uploads if any files are provided
         if rail_sathi_complain_media_files and len(rail_sathi_complain_media_files) > 0:
-            logger.info(f"Processing {len(rail_sathi_complain_media_files)} files")
+            print(f"Processing {len(rail_sathi_complain_media_files)} files")
             
             # Read all file contents first (before threading)
             file_data_list = []
@@ -231,7 +278,7 @@ async def create_complaint_endpoint_threaded(
                         'filename': file_obj.filename,
                         'content_type': file_obj.content_type
                     })
-                    logger.info(f"Read file: {file_obj.filename}, size: {len(file_content)}")
+                    print(f"Read file: {file_obj.filename}, size: {len(file_content)}")
             
             # Process files in threads
             threads = []
@@ -254,25 +301,37 @@ async def create_complaint_endpoint_threaded(
                 )
                 t.start()
                 threads.append(t)
-                logger.info(f"Started thread for file: {file_data['filename']}")
+                print(f"Started thread for file: {file_data['filename']}")
             
             # Wait for all threads to complete
             for t in threads:
                 t.join()
-                logger.info(f"Thread completed: {t.name}")
+                print(f"Thread completed: {t.name}")
         
         # Add a small delay to ensure database operations complete
         await asyncio.sleep(1)
         
         # Get updated complaint with media files
         updated_complaint = get_complaint_by_id(complain_id)
-        logger.info(f"Final complaint data retrieved with {len(updated_complaint.get('rail_sathi_complain_media_files', []))} media files")
         
+        # Ensure customer_care and train_depot are added to the response
+        updated_complaint["customer_care"] = war_room_phones
+        updated_complaint["train_depot"] = train_depot_name
+        # Add this right before the return statement
+        print(f"DEBUG - train_number: {train_number}")
+        print(f"DEBUG - train_depot_name: '{train_depot_name}'")
+        print(f"DEBUG - war_room_phones: {war_room_phones}")
+        print(f"DEBUG - updated_complaint keys: {list(updated_complaint.keys())}")
+        
+        print(f"Final complaint data retrieved with {len(updated_complaint.get('rail_sathi_complain_media_files', []))} media files")
+        print(f"Customer care phones in response: {updated_complaint['customer_care']}")
+        print(f"Train depot in response: {updated_complaint['train_depot']}")
+
         return {
             "message": "Complaint created successfully",
             "data": updated_complaint
         }
-        
+
     except Exception as e:
         logger.error(f"Error creating complaint: {str(e)}")
         import traceback
@@ -300,8 +359,8 @@ async def update_complaint_endpoint(
 ):
     """Update complaint (partial update)"""
     try:
-        logger.info(f"Updating complaint {complain_id} for user: {name}")
-        logger.info(f"Number of files received: {len(rail_sathi_complain_media_files)}")
+        print(f"Updating complaint {complain_id} for user: {name}")
+        print(f"Number of files received: {len(rail_sathi_complain_media_files)}")
         
         # Check if complaint exists and validate permissions
         existing_complaint = get_complaint_by_id(complain_id)
@@ -333,11 +392,11 @@ async def update_complaint_endpoint(
         
         # Update complaint
         updated_complaint = update_complaint(complain_id, update_data)
-        logger.info(f"Complaint {complain_id} updated successfully")
+        print(f"Complaint {complain_id} updated successfully")
         
         # Handle file uploads if any files are provided (similar to create endpoint)
         if rail_sathi_complain_media_files and len(rail_sathi_complain_media_files) > 0:
-            logger.info(f"Processing {len(rail_sathi_complain_media_files)} files")
+            print(f"Processing {len(rail_sathi_complain_media_files)} files")
             
             # Read all file contents first (before threading)
             file_data_list = []
@@ -349,7 +408,7 @@ async def update_complaint_endpoint(
                         'filename': file_obj.filename,
                         'content_type': file_obj.content_type
                     })
-                    logger.info(f"Read file: {file_obj.filename}, size: {len(file_content)}")
+                    print(f"Read file: {file_obj.filename}, size: {len(file_content)}")
             
             # Process files in threads
             threads = []
@@ -372,19 +431,19 @@ async def update_complaint_endpoint(
                 )
                 t.start()
                 threads.append(t)
-                logger.info(f"Started thread for file: {file_data['filename']}")
+                print(f"Started thread for file: {file_data['filename']}")
             
             # Wait for all threads to complete
             for t in threads:
                 t.join()
-                logger.info(f"Thread completed: {t.name}")
+                print(f"Thread completed: {t.name}")
         
         # Add a small delay to ensure database operations complete
         await asyncio.sleep(1)
         
         # Get final updated complaint with media files
         final_complaint = get_complaint_by_id(complain_id)
-        logger.info(f"Final complaint data retrieved with {len(final_complaint.get('rail_sathi_complain_media_files', []))} media files")
+        print(f"Final complaint data retrieved with {len(final_complaint.get('rail_sathi_complain_media_files', []))} media files")
         
         return {
             "message": "Complaint updated successfully",
@@ -419,8 +478,8 @@ async def replace_complaint_endpoint(
 ):
     """Replace complaint (full update)"""
     try:
-        logger.info(f"Replacing complaint {complain_id} for user: {name}")
-        logger.info(f"Number of files received: {len(rail_sathi_complain_media_files)}")
+        print(f"Replacing complaint {complain_id} for user: {name}")
+        print(f"Number of files received: {len(rail_sathi_complain_media_files)}")
         
         # Check if complaint exists and validate permissions
         existing_complaint = get_complaint_by_id(complain_id)
@@ -453,11 +512,11 @@ async def replace_complaint_endpoint(
         
         # Update complaint
         updated_complaint = update_complaint(complain_id, update_data)
-        logger.info(f"Complaint {complain_id} replaced successfully")
+        print(f"Complaint {complain_id} replaced successfully")
         
         # Handle file uploads if any files are provided
         if rail_sathi_complain_media_files and len(rail_sathi_complain_media_files) > 0:
-            logger.info(f"Processing {len(rail_sathi_complain_media_files)} files")
+            print(f"Processing {len(rail_sathi_complain_media_files)} files")
             
             # Read all file contents first (before threading)
             file_data_list = []
@@ -469,7 +528,7 @@ async def replace_complaint_endpoint(
                         'filename': file_obj.filename,
                         'content_type': file_obj.content_type
                     })
-                    logger.info(f"Read file: {file_obj.filename}, size: {len(file_content)}")
+                    print(f"Read file: {file_obj.filename}, size: {len(file_content)}")
             
             # Process files in threads
             threads = []
@@ -492,19 +551,19 @@ async def replace_complaint_endpoint(
                 )
                 t.start()
                 threads.append(t)
-                logger.info(f"Started thread for file: {file_data['filename']}")
+                print(f"Started thread for file: {file_data['filename']}")
             
             # Wait for all threads to complete
             for t in threads:
                 t.join()
-                logger.info(f"Thread completed: {t.name}")
+                print(f"Thread completed: {t.name}")
         
         # Add a small delay to ensure database operations complete
         await asyncio.sleep(1)
         
         # Get final updated complaint with media files
         final_complaint = get_complaint_by_id(complain_id)
-        logger.info(f"Final complaint data retrieved with {len(final_complaint.get('rail_sathi_complain_media_files', []))} media files")
+        print(f"Final complaint data retrieved with {len(final_complaint.get('rail_sathi_complain_media_files', []))} media files")
         
         # Return properly formatted response (this was the missing part!)
         return {
@@ -528,7 +587,7 @@ async def delete_complaint_endpoint(
 ):
     """Delete complaint"""
     try:
-        logger.info(f"Deleting complaint {complain_id} for user: {name}")
+        print(f"Deleting complaint {complain_id} for user: {name}")
         
         # Check if complaint exists and validate permissions
         existing_complaint = get_complaint_by_id(complain_id)
@@ -543,7 +602,7 @@ async def delete_complaint_endpoint(
         
         # Delete complaint
         delete_complaint(complain_id)
-        logger.info(f"Complaint {complain_id} deleted successfully")
+        print(f"Complaint {complain_id} deleted successfully")
         
         return {"message": "Complaint deleted successfully"}
         
@@ -564,8 +623,8 @@ async def delete_complaint_media_endpoint(
 ):
     """Delete complaint media files"""
     try:
-        logger.info(f"Deleting media files for complaint {complain_id} for user: {name}")
-        logger.info(f"Media IDs to delete: {deleted_media_ids}")
+        print(f"Deleting media files for complaint {complain_id} for user: {name}")
+        print(f"Media IDs to delete: {deleted_media_ids}")
         
         # Check if complaint exists and validate permissions
         existing_complaint = get_complaint_by_id(complain_id)
@@ -587,7 +646,7 @@ async def delete_complaint_media_endpoint(
         if deleted_count == 0:
             raise HTTPException(status_code=400, detail="No matching media files found for deletion.")
         
-        logger.info(f"{deleted_count} media file(s) deleted successfully for complaint {complain_id}")
+        print(f"{deleted_count} media file(s) deleted successfully for complaint {complain_id}")
         
         return {"message": f"{deleted_count} media file(s) deleted successfully."}
         

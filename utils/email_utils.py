@@ -93,17 +93,19 @@ def send_passenger_complain_email(complain_details: Dict):
             SELECT u.* 
             FROM user_onboarding_user u 
             JOIN user_onboarding_roles ut ON u.user_type_id = ut.id 
-            WHERE ut.name = 's2 admin'
+            WHERE ut.name = 's2 admin' AND u.depo LIKE '%%{train_depot_name}%%'
         """
         conn = get_db_connection()
         s2_admin_users = execute_query(conn, s2_admin_query)
         
-        railway_admin_query = """
+        railway_admin_query = f"""
             SELECT u.* 
             FROM user_onboarding_user u 
             JOIN user_onboarding_roles ut ON u.user_type_id = ut.id 
-            WHERE ut.name = 'railway admin'
+            WHERE ut.name IN ('railway admin', 'railway officer') 
+            AND u.depo LIKE '%%{train_depot_name}%%'
         """
+
         railway_admin_users = execute_query(conn, railway_admin_query)
         
         # Updated query to get train access users with better filtering

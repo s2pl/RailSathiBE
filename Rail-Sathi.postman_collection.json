@@ -1,0 +1,1391 @@
+{
+	"info": {
+		"_postman_id": "4df90f9d-263d-4dc6-87d4-b5bdf9da8e13",
+		"name": "Rail-Sathi",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "38578660"
+	},
+	"item": [
+		{
+			"name": "get complaint by id",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU3MDY2OTE2LCJpYXQiOjE3NDkyOTA5MTYsImp0aSI6IjcxNWQ2ZjU1M2I1YTQyZGU4N2M1NTJlY2M4ZjA2MmYzIiwidXNlcl9pZCI6MjI1Nn0.vjTvHfhK6e7VuoB-YkCZ2AMXDiAWRTgK1-OphVVl8Ow",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": []
+				},
+				"url": {
+					"raw": "http://0.0.0.0:8000/complaint/get/50",
+					"protocol": "http",
+					"host": [
+						"0",
+						"0",
+						"0",
+						"0"
+					],
+					"port": "8000",
+					"path": [
+						"complaint",
+						"get",
+						"50"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "example",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": []
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/rs_microservice/complaint/get/50",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"rs_microservice",
+								"complaint",
+								"get",
+								"50"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "date",
+							"value": "Wed, 23 Jul 2025 10:06:01 GMT"
+						},
+						{
+							"key": "server",
+							"value": "uvicorn"
+						},
+						{
+							"key": "content-length",
+							"value": "948"
+						},
+						{
+							"key": "content-type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"message\": \"Complaint retrieved successfully\",\n    \"data\": {\n        \"complain_id\": 50,\n        \"pnr_number\": \"1234567890\",\n        \"is_pnr_validated\": \"attempted-failure\",\n        \"name\": \"shivam kumar chaudha\",\n        \"mobile_number\": \"8102950018\",\n        \"complain_type\": null,\n        \"complain_description\": \"JJJJ\",\n        \"complain_date\": \"2025-06-03\",\n        \"complain_status\": \"pending\",\n        \"train_id\": 40,\n        \"train_number\": \"12393\",\n        \"train_name\": \"SAMPOORNA KRANTI EXPRESS\",\n        \"coach\": \"A1\",\n        \"berth_no\": 65,\n        \"created_at\": \"2025-06-03T06:47:32.916003Z\",\n        \"created_by\": \"shivam kumar chaudha\",\n        \"updated_at\": \"2025-06-03T06:47:32.916013Z\",\n        \"updated_by\": null,\n        \"train_no\": 12393,\n        \"train_depot\": \"RJPB\",\n        \"rail_sathi_complain_media_files\": [\n            {\n                \"id\": 30,\n                \"media_type\": \"image\",\n                \"media_url\": \"https://storage.googleapis.com/sanchalak-media-bucket1/rail_sathi_complain_images/rail_sathi_complain_50_2025-06-03_121732.919546_bad5b.jpeg\",\n                \"created_at\": \"2025-06-03T06:47:33.420579Z\",\n                \"updated_at\": \"2025-06-03T06:47:33.420594Z\",\n                \"created_by\": \"shivam kumar chaudha\",\n                \"updated_by\": null\n            }\n        ]\n    }\n}"
+				}
+			]
+		},
+		{
+			"name": "add a complaint",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "",
+							"value": "'{\n    \"pnr_number\": \"1234567890\",\n    \"is_pnr_validated\": \"not-attempted\",\n    \"name\": \"Harsh\",\n    \"mobile_number\": \"9999999999\",\n    \"complain_type\": \"Cleanliness\",\n    \"complain_description\": \"Coach is dirty.\",\n    \"complain_date\": \"2025-06-11\",\n    \"complain_status\": \"pending\",\n    \"train_id\": 123,\n    \"train_number\": \"12345\",\n    \"train_name\": \"Express Train\",\n    \"coach\": \"B1\",\n    \"berth_no\": 21,\n    \"created_by\": \"harshm\",\n    \"rail_sathi_complain_media_files\": [\n      {\n        \"media_type\": \"image\",\n        \"media_url\": \"http://example.com/image.jpg\",\n        \"created_by\": \"harshm\",\n        \"updated_by\": \"harshm\"\n      }\n    ]\n  }'",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "name",
+							"value": "Pankaj",
+							"type": "text"
+						},
+						{
+							"key": "mobile_number",
+							"value": "9534117000",
+							"type": "text"
+						},
+						{
+							"key": "complain_type",
+							"value": "\"Bed-Roll\"",
+							"type": "text"
+						},
+						{
+							"key": "complain_description",
+							"value": "\"Bed mein chipkali\"",
+							"type": "text"
+						},
+						{
+							"key": "train_number",
+							"value": "12345",
+							"type": "text"
+						},
+						{
+							"key": "coach",
+							"value": "A1",
+							"type": "text"
+						},
+						{
+							"key": "berth_no",
+							"value": "8",
+							"type": "text"
+						},
+						{
+							"key": "complain_date",
+							"value": "",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "updated_by",
+							"value": "harsh",
+							"type": "text"
+						},
+						{
+							"key": "train_depot",
+							"value": "SYAE",
+							"type": "text"
+						},
+						{
+							"key": "rail_sathi_complain_media_files",
+							"type": "file",
+							"src": "/Users/harsh/Desktop/2fa.png"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://0.0.0.0:8000/complaint/add",
+					"protocol": "http",
+					"host": [
+						"0",
+						"0",
+						"0",
+						"0"
+					],
+					"port": "8000",
+					"path": [
+						"complaint",
+						"add"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "example",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "pnr_value",
+									"value": "'{\n    \"pnr_number\": \"1234567890\",\n    \"is_pnr_validated\": \"not-attempted\",\n    \"name\": \"Harsh\",\n    \"mobile_number\": \"9999999999\",\n    \"complain_type\": \"Cleanliness\",\n    \"complain_description\": \"Coach is dirty.\",\n    \"complain_date\": \"2025-06-11\",\n    \"complain_status\": \"pending\",\n    \"train_id\": 123,\n    \"train_number\": \"12345\",\n    \"train_name\": \"Express Train\",\n    \"coach\": \"B1\",\n    \"berth_no\": 21,\n    \"created_by\": \"harshm\",\n    \"rail_sathi_complain_media_files\": [\n      {\n        \"media_type\": \"image\",\n        \"media_url\": \"http://example.com/image.jpg\",\n        \"created_by\": \"harshm\",\n        \"updated_by\": \"harshm\"\n      }\n    ]\n  }'",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "name",
+									"value": "test harsh",
+									"type": "text"
+								},
+								{
+									"key": "mobile_number",
+									"value": "9534117011",
+									"type": "text"
+								},
+								{
+									"key": "complain_type",
+									"value": "\"Bed-Roll\"",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "complain_description",
+									"value": "test email, please avoid",
+									"type": "text"
+								},
+								{
+									"key": "train_number",
+									"value": "12345",
+									"type": "text"
+								},
+								{
+									"key": "coach",
+									"value": "B6",
+									"type": "text"
+								},
+								{
+									"key": "berth_no",
+									"value": "65",
+									"type": "text"
+								},
+								{
+									"key": "complain_date",
+									"value": "",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "updated_by",
+									"value": "Test",
+									"type": "text"
+								},
+								{
+									"key": "train_depot",
+									"value": "ZNA",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "rail_sathi_complain_media_files",
+									"type": "file",
+									"src": "/Users/harsh/Documents/harsh.jpg"
+								},
+								{
+									"key": "date_of_journey",
+									"value": "2025-07-20",
+									"type": "text"
+								},
+								{
+									"key": "pnr_number",
+									"value": "6254120861",
+									"type": "text"
+								},
+								{
+									"key": "is_pnr_validated",
+									"value": "attempted-success",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/rs_microservice/complaint/add/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"rs_microservice",
+								"complaint",
+								"add",
+								""
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "date",
+							"value": "Thu, 24 Jul 2025 06:16:51 GMT"
+						},
+						{
+							"key": "server",
+							"value": "uvicorn"
+						},
+						{
+							"key": "content-length",
+							"value": "1070"
+						},
+						{
+							"key": "content-type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"message\": \"Complaint created successfully\",\n    \"data\": {\n        \"complain_id\": 147,\n        \"pnr_number\": \"6254120861\",\n        \"is_pnr_validated\": \"attempted-success\",\n        \"name\": \"test harsh\",\n        \"mobile_number\": \"9534117011\",\n        \"complain_type\": null,\n        \"complain_description\": \"test email, please avoid\",\n        \"complain_date\": \"2025-07-24\",\n        \"complain_status\": \"pending\",\n        \"train_id\": 127,\n        \"train_number\": \"12345\",\n        \"train_name\": \"HWH-GHY, SARAIGHAT EXP\",\n        \"coach\": \"B6\",\n        \"berth_no\": 65,\n        \"created_at\": \"2025-07-24T11:46:55.382709Z\",\n        \"created_by\": \"test harsh\",\n        \"updated_at\": \"2025-07-24T11:46:55.382709Z\",\n        \"updated_by\": null,\n        \"train_no\": 12345,\n        \"customer_care\": [\n            \"6290713014\",\n            \"7074901429\",\n            \"6290731420\",\n            \"8252039901\",\n            \"6290731917\",\n            \"7903043552\",\n            \"8355003958\",\n            \"9852251637\",\n            \"9852024070\"\n        ],\n        \"train_depot\": \"SYAE\",\n        \"rail_sathi_complain_media_files\": [\n            {\n                \"id\": 63,\n                \"media_type\": \"image\",\n                \"media_url\": \"https://storage.googleapis.com/sanchalak-media-bucket1/rail_sathi_complain_images/rail_sathi_complain_147_2025-07-24_114656571124_af97f.jpg\",\n                \"created_at\": \"2025-07-24T11:46:58.297049Z\",\n                \"updated_at\": \"2025-07-24T11:46:58.297049Z\",\n                \"created_by\": \"test harsh\",\n                \"updated_by\": null\n            }\n        ]\n    }\n}"
+				}
+			]
+		},
+		{
+			"name": "get complaint by mobile number",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://0.0.0.0:8000/complaint/get/date/2025-06-12?mobile_number=9534117011",
+					"protocol": "http",
+					"host": [
+						"0",
+						"0",
+						"0",
+						"0"
+					],
+					"port": "8000",
+					"path": [
+						"complaint",
+						"get",
+						"date",
+						"2025-06-12"
+					],
+					"query": [
+						{
+							"key": "mobile_number",
+							"value": "9534117011"
+						}
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "example",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:8000/rs_microservice/complaint/get/date/2025-07-23?mobile_number=9534117011",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"rs_microservice",
+								"complaint",
+								"get",
+								"date",
+								"2025-07-23"
+							],
+							"query": [
+								{
+									"key": "mobile_number",
+									"value": "9534117011"
+								}
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "date",
+							"value": "Wed, 23 Jul 2025 10:08:44 GMT"
+						},
+						{
+							"key": "server",
+							"value": "uvicorn"
+						},
+						{
+							"key": "content-length",
+							"value": "939"
+						},
+						{
+							"key": "content-type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "[\n    {\n        \"message\": \"Complaint retrieved successfully\",\n        \"data\": {\n            \"complain_id\": 139,\n            \"pnr_number\": \"6254120861\",\n            \"is_pnr_validated\": \"attempted-success\",\n            \"name\": \"test harsh\",\n            \"mobile_number\": \"9534117011\",\n            \"complain_type\": null,\n            \"complain_description\": \"test email, please avoid\",\n            \"complain_date\": \"2025-07-23\",\n            \"complain_status\": \"pending\",\n            \"train_id\": 133,\n            \"train_number\": \"13005\",\n            \"train_name\": \"HWH-ASR, AMRITSAR MAIL\",\n            \"coach\": \"B5\",\n            \"berth_no\": 65,\n            \"created_at\": \"2025-07-23T15:36:58.584211Z\",\n            \"created_by\": \"test harsh\",\n            \"updated_at\": \"2025-07-23T15:36:58.584211Z\",\n            \"updated_by\": null,\n            \"train_no\": 13005,\n            \"train_depot\": \"SYAE\",\n            \"rail_sathi_complain_media_files\": [\n                {\n                    \"id\": 58,\n                    \"media_type\": \"image\",\n                    \"media_url\": \"https://storage.googleapis.com/sanchalak-media-bucket1/rail_sathi_complain_images/rail_sathi_complain_139_2025-07-23_153659273700_46438.jpg\",\n                    \"created_at\": \"2025-07-23T15:37:00.846928Z\",\n                    \"updated_at\": \"2025-07-23T15:37:00.846928Z\",\n                    \"created_by\": \"test harsh\",\n                    \"updated_by\": null\n                }\n            ]\n        }\n    }\n]"
+				}
+			]
+		},
+		{
+			"name": "update-complaint",
+			"request": {
+				"method": "PATCH",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "",
+							"value": "'{\n    \"pnr_number\": \"1234567890\",\n    \"is_pnr_validated\": \"not-attempted\",\n    \"name\": \"Harsh\",\n    \"mobile_number\": \"9999999999\",\n    \"complain_type\": \"Cleanliness\",\n    \"complain_description\": \"Coach is dirty.\",\n    \"complain_date\": \"2025-06-11\",\n    \"complain_status\": \"pending\",\n    \"train_id\": 123,\n    \"train_number\": \"12345\",\n    \"train_name\": \"Express Train\",\n    \"coach\": \"B1\",\n    \"berth_no\": 21,\n    \"created_by\": \"harshm\",\n    \"rail_sathi_complain_media_files\": [\n      {\n        \"media_type\": \"image\",\n        \"media_url\": \"http://example.com/image.jpg\",\n        \"created_by\": \"harshm\",\n        \"updated_by\": \"harshm\"\n      }\n    ]\n  }'",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "name",
+							"value": "Pankaj",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "mobile_number",
+							"value": "9534117000",
+							"type": "text"
+						},
+						{
+							"key": "complain_type",
+							"value": "\"Bed-Ball\"",
+							"type": "text"
+						},
+						{
+							"key": "complain_description",
+							"value": "\"Bed mein chipkali\"",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "train_number",
+							"value": "12345",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "coach",
+							"value": "A2",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "berth_no",
+							"value": "8",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "complain_date",
+							"value": "",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "updated_by",
+							"value": "harsh",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "train_depot",
+							"value": "SYAE",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "rail_sathi_complain_media_files",
+							"type": "file",
+							"src": "/Users/harsh/Desktop/2fa.png",
+							"disabled": true
+						},
+						{
+							"key": "created_by",
+							"value": "Pankaj",
+							"type": "text"
+						},
+						{
+							"key": "complain_status",
+							"value": "pending",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://0.0.0.0:8000/complaint/update/49",
+					"protocol": "http",
+					"host": [
+						"0",
+						"0",
+						"0",
+						"0"
+					],
+					"port": "8000",
+					"path": [
+						"complaint",
+						"update",
+						"49"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "patch-example",
+					"originalRequest": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "",
+									"value": "'{\n    \"pnr_number\": \"1234567890\",\n    \"is_pnr_validated\": \"not-attempted\",\n    \"name\": \"Harsh\",\n    \"mobile_number\": \"9999999999\",\n    \"complain_type\": \"Cleanliness\",\n    \"complain_description\": \"Coach is dirty.\",\n    \"complain_date\": \"2025-06-11\",\n    \"complain_status\": \"pending\",\n    \"train_id\": 123,\n    \"train_number\": \"12345\",\n    \"train_name\": \"Express Train\",\n    \"coach\": \"B1\",\n    \"berth_no\": 21,\n    \"created_by\": \"harshm\",\n    \"rail_sathi_complain_media_files\": [\n      {\n        \"media_type\": \"image\",\n        \"media_url\": \"http://example.com/image.jpg\",\n        \"created_by\": \"harshm\",\n        \"updated_by\": \"harshm\"\n      }\n    ]\n  }'",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "name",
+									"value": "Pankaj",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "mobile_number",
+									"value": "9534117000",
+									"type": "text"
+								},
+								{
+									"key": "complain_type",
+									"value": "\"Bed-Ball\"",
+									"type": "text"
+								},
+								{
+									"key": "complain_description",
+									"value": "\"Bed mein chipkali\"",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "train_number",
+									"value": "12345",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "coach",
+									"value": "A2",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "berth_no",
+									"value": "8",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "complain_date",
+									"value": "",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "updated_by",
+									"value": "harsh",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "train_depot",
+									"value": "SYAE",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "rail_sathi_complain_media_files",
+									"type": "file",
+									"src": "/Users/harsh/Desktop/2fa.png",
+									"disabled": true
+								},
+								{
+									"key": "created_by",
+									"value": "Pankaj",
+									"type": "text"
+								},
+								{
+									"key": "complain_status",
+									"value": "pending",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/rs_microservice/complaint/update/139",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"rs_microservice",
+								"complaint",
+								"update",
+								"139"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "date",
+							"value": "Wed, 23 Jul 2025 10:09:47 GMT"
+						},
+						{
+							"key": "server",
+							"value": "uvicorn"
+						},
+						{
+							"key": "content-length",
+							"value": "945"
+						},
+						{
+							"key": "content-type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"message\": \"Complaint updated successfully\",\n    \"data\": {\n        \"complain_id\": 139,\n        \"pnr_number\": \"6254120861\",\n        \"is_pnr_validated\": \"attempted-success\",\n        \"name\": \"test harsh\",\n        \"mobile_number\": \"9534117000\",\n        \"complain_type\": \"\\\"Bed-Ball\\\"\",\n        \"complain_description\": \"test email, please avoid\",\n        \"complain_date\": \"2025-07-23\",\n        \"complain_status\": \"pending\",\n        \"train_id\": 133,\n        \"train_number\": \"13005\",\n        \"train_name\": \"HWH-ASR, AMRITSAR MAIL\",\n        \"coach\": \"B5\",\n        \"berth_no\": 65,\n        \"created_at\": \"2025-07-23T15:36:58.584211Z\",\n        \"created_by\": \"test harsh\",\n        \"updated_at\": \"2025-07-23T15:39:48.898129Z\",\n        \"updated_by\": null,\n        \"train_no\": 13005,\n        \"train_depot\": \"SYAE\",\n        \"rail_sathi_complain_media_files\": [\n            {\n                \"id\": 58,\n                \"media_type\": \"image\",\n                \"media_url\": \"https://storage.googleapis.com/sanchalak-media-bucket1/rail_sathi_complain_images/rail_sathi_complain_139_2025-07-23_153659273700_46438.jpg\",\n                \"created_at\": \"2025-07-23T15:37:00.846928Z\",\n                \"updated_at\": \"2025-07-23T15:37:00.846928Z\",\n                \"created_by\": \"test harsh\",\n                \"updated_by\": null\n            }\n        ]\n    }\n}"
+				}
+			]
+		},
+		{
+			"name": "replace-complaint",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "",
+							"value": "'{\n    \"pnr_number\": \"1234567890\",\n    \"is_pnr_validated\": \"not-attempted\",\n    \"name\": \"Harsh\",\n    \"mobile_number\": \"9999999999\",\n    \"complain_type\": \"Cleanliness\",\n    \"complain_description\": \"Coach is dirty.\",\n    \"complain_date\": \"2025-06-11\",\n    \"complain_status\": \"pending\",\n    \"train_id\": 123,\n    \"train_number\": \"12345\",\n    \"train_name\": \"Express Train\",\n    \"coach\": \"B1\",\n    \"berth_no\": 21,\n    \"created_by\": \"harshm\",\n    \"rail_sathi_complain_media_files\": [\n      {\n        \"media_type\": \"image\",\n        \"media_url\": \"http://example.com/image.jpg\",\n        \"created_by\": \"harshm\",\n        \"updated_by\": \"harshm\"\n      }\n    ]\n  }'",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "name",
+							"value": "Pankaj",
+							"type": "text"
+						},
+						{
+							"key": "mobile_number",
+							"value": "9534117000",
+							"type": "text"
+						},
+						{
+							"key": "complain_type",
+							"value": "\"Bed-Ball\"",
+							"type": "text"
+						},
+						{
+							"key": "complain_description",
+							"value": "\"Bed mein chipkali\"",
+							"type": "text"
+						},
+						{
+							"key": "train_number",
+							"value": "12345",
+							"type": "text"
+						},
+						{
+							"key": "coach",
+							"value": "A2",
+							"type": "text"
+						},
+						{
+							"key": "berth_no",
+							"value": "8",
+							"type": "text"
+						},
+						{
+							"key": "complain_date",
+							"value": "",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "updated_by",
+							"value": "harsh",
+							"type": "text"
+						},
+						{
+							"key": "train_depot",
+							"value": "SYAE",
+							"type": "text"
+						},
+						{
+							"key": "rail_sathi_complain_media_files",
+							"type": "file",
+							"src": [
+								"/Users/harsh/Desktop/2fa.png",
+								"/Users/harsh/Desktop/AtulAnand.jpeg"
+							]
+						},
+						{
+							"key": "created_by",
+							"value": "Pankaj",
+							"type": "text"
+						},
+						{
+							"key": "complain_status",
+							"value": "pending",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://0.0.0.0:8000/complaint/update/49",
+					"protocol": "http",
+					"host": [
+						"0",
+						"0",
+						"0",
+						"0"
+					],
+					"port": "8000",
+					"path": [
+						"complaint",
+						"update",
+						"49"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "replace-complaint",
+					"originalRequest": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "",
+									"value": "'{\n    \"pnr_number\": \"1234567890\",\n    \"is_pnr_validated\": \"not-attempted\",\n    \"name\": \"Harsh\",\n    \"mobile_number\": \"9999999999\",\n    \"complain_type\": \"Cleanliness\",\n    \"complain_description\": \"Coach is dirty.\",\n    \"complain_date\": \"2025-06-11\",\n    \"complain_status\": \"pending\",\n    \"train_id\": 123,\n    \"train_number\": \"12345\",\n    \"train_name\": \"Express Train\",\n    \"coach\": \"B1\",\n    \"berth_no\": 21,\n    \"created_by\": \"harshm\",\n    \"rail_sathi_complain_media_files\": [\n      {\n        \"media_type\": \"image\",\n        \"media_url\": \"http://example.com/image.jpg\",\n        \"created_by\": \"harshm\",\n        \"updated_by\": \"harshm\"\n      }\n    ]\n  }'",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "name",
+									"value": "test harsh",
+									"type": "text"
+								},
+								{
+									"key": "mobile_number",
+									"value": "9534117000",
+									"type": "text"
+								},
+								{
+									"key": "complain_type",
+									"value": "\"Bed-Ball\"",
+									"type": "text"
+								},
+								{
+									"key": "complain_description",
+									"value": "\"Bed mein chipkali\"",
+									"type": "text"
+								},
+								{
+									"key": "train_number",
+									"value": "12345",
+									"type": "text"
+								},
+								{
+									"key": "coach",
+									"value": "A2",
+									"type": "text"
+								},
+								{
+									"key": "berth_no",
+									"value": "8",
+									"type": "text"
+								},
+								{
+									"key": "complain_date",
+									"value": "",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "updated_by",
+									"value": "harsh",
+									"type": "text"
+								},
+								{
+									"key": "train_depot",
+									"value": "SYAE",
+									"type": "text"
+								},
+								{
+									"key": "rail_sathi_complain_media_files",
+									"type": "file",
+									"src": [
+										"/Users/harsh/Desktop/2fa.png",
+										"/Users/harsh/Desktop/AtulAnand.jpeg"
+									]
+								},
+								{
+									"key": "created_by",
+									"value": "test harsh",
+									"type": "text"
+								},
+								{
+									"key": "complain_status",
+									"value": "pending",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/rs_microservice/complaint/update/139",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"rs_microservice",
+								"complaint",
+								"update",
+								"139"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "date",
+							"value": "Wed, 23 Jul 2025 10:11:30 GMT"
+						},
+						{
+							"key": "server",
+							"value": "uvicorn"
+						},
+						{
+							"key": "content-length",
+							"value": "930"
+						},
+						{
+							"key": "content-type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"message\": \"Complaint replaced successfully\",\n    \"data\": {\n        \"complain_id\": 139,\n        \"pnr_number\": null,\n        \"is_pnr_validated\": \"not-attempted\",\n        \"name\": \"test harsh\",\n        \"mobile_number\": \"9534117000\",\n        \"complain_type\": \"\\\"Bed-Ball\\\"\",\n        \"complain_description\": \"\\\"Bed mein chipkali\\\"\",\n        \"complain_date\": null,\n        \"complain_status\": \"pending\",\n        \"train_id\": 127,\n        \"train_number\": \"12345\",\n        \"train_name\": \"HWH-GHY, SARAIGHAT EXP\",\n        \"coach\": \"A2\",\n        \"berth_no\": 8,\n        \"created_at\": \"2025-07-23T15:36:58.584211Z\",\n        \"created_by\": \"test harsh\",\n        \"updated_at\": \"2025-07-23T15:41:32.843291Z\",\n        \"updated_by\": \"test harsh\",\n        \"train_no\": 12345,\n        \"train_depot\": \"SYAE\",\n        \"rail_sathi_complain_media_files\": [\n            {\n                \"id\": 58,\n                \"media_type\": \"image\",\n                \"media_url\": \"https://storage.googleapis.com/sanchalak-media-bucket1/rail_sathi_complain_images/rail_sathi_complain_139_2025-07-23_153659273700_46438.jpg\",\n                \"created_at\": \"2025-07-23T15:37:00.846928Z\",\n                \"updated_at\": \"2025-07-23T15:37:00.846928Z\",\n                \"created_by\": \"test harsh\",\n                \"updated_by\": null\n            }\n        ]\n    }\n}"
+				}
+			]
+		},
+		{
+			"name": "delete-complaint",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "",
+							"value": "'{\n    \"pnr_number\": \"1234567890\",\n    \"is_pnr_validated\": \"not-attempted\",\n    \"name\": \"Harsh\",\n    \"mobile_number\": \"9999999999\",\n    \"complain_type\": \"Cleanliness\",\n    \"complain_description\": \"Coach is dirty.\",\n    \"complain_date\": \"2025-06-11\",\n    \"complain_status\": \"pending\",\n    \"train_id\": 123,\n    \"train_number\": \"12345\",\n    \"train_name\": \"Express Train\",\n    \"coach\": \"B1\",\n    \"berth_no\": 21,\n    \"created_by\": \"harshm\",\n    \"rail_sathi_complain_media_files\": [\n      {\n        \"media_type\": \"image\",\n        \"media_url\": \"http://example.com/image.jpg\",\n        \"created_by\": \"harshm\",\n        \"updated_by\": \"harshm\"\n      }\n    ]\n  }'",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "name",
+							"value": "Pankaj",
+							"type": "text"
+						},
+						{
+							"key": "mobile_number",
+							"value": "9534117000",
+							"type": "text"
+						},
+						{
+							"key": "complain_type",
+							"value": "\"Bed-Ball\"",
+							"type": "text"
+						},
+						{
+							"key": "complain_description",
+							"value": "\"Bed mein chipkali\"",
+							"type": "text"
+						},
+						{
+							"key": "train_number",
+							"value": "12345",
+							"type": "text"
+						},
+						{
+							"key": "coach",
+							"value": "A2",
+							"type": "text"
+						},
+						{
+							"key": "berth_no",
+							"value": "8",
+							"type": "text"
+						},
+						{
+							"key": "complain_date",
+							"value": "",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "updated_by",
+							"value": "harsh",
+							"type": "text"
+						},
+						{
+							"key": "train_depot",
+							"value": "SYAE",
+							"type": "text"
+						},
+						{
+							"key": "rail_sathi_complain_media_files",
+							"type": "file",
+							"src": [
+								"/Users/harsh/Desktop/2fa.png",
+								"/Users/harsh/Desktop/AtulAnand.jpeg"
+							]
+						},
+						{
+							"key": "created_by",
+							"value": "Pankaj",
+							"type": "text"
+						},
+						{
+							"key": "complain_status",
+							"value": "pending",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://0.0.0.0:8000/complaint/delete/49",
+					"protocol": "http",
+					"host": [
+						"0",
+						"0",
+						"0",
+						"0"
+					],
+					"port": "8000",
+					"path": [
+						"complaint",
+						"delete",
+						"49"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "delete-complaint",
+					"originalRequest": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "",
+									"value": "'{\n    \"pnr_number\": \"1234567890\",\n    \"is_pnr_validated\": \"not-attempted\",\n    \"name\": \"Harsh\",\n    \"mobile_number\": \"9999999999\",\n    \"complain_type\": \"Cleanliness\",\n    \"complain_description\": \"Coach is dirty.\",\n    \"complain_date\": \"2025-06-11\",\n    \"complain_status\": \"pending\",\n    \"train_id\": 123,\n    \"train_number\": \"12345\",\n    \"train_name\": \"Express Train\",\n    \"coach\": \"B1\",\n    \"berth_no\": 21,\n    \"created_by\": \"harshm\",\n    \"rail_sathi_complain_media_files\": [\n      {\n        \"media_type\": \"image\",\n        \"media_url\": \"http://example.com/image.jpg\",\n        \"created_by\": \"harshm\",\n        \"updated_by\": \"harshm\"\n      }\n    ]\n  }'",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "name",
+									"value": "test harsh",
+									"type": "text"
+								},
+								{
+									"key": "mobile_number",
+									"value": "9534117000",
+									"type": "text"
+								},
+								{
+									"key": "complain_type",
+									"value": "\"Bed-Ball\"",
+									"type": "text"
+								},
+								{
+									"key": "complain_description",
+									"value": "\"Bed mein chipkali\"",
+									"type": "text"
+								},
+								{
+									"key": "train_number",
+									"value": "12345",
+									"type": "text"
+								},
+								{
+									"key": "coach",
+									"value": "A2",
+									"type": "text"
+								},
+								{
+									"key": "berth_no",
+									"value": "8",
+									"type": "text"
+								},
+								{
+									"key": "complain_date",
+									"value": "",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "updated_by",
+									"value": "harsh",
+									"type": "text"
+								},
+								{
+									"key": "train_depot",
+									"value": "SYAE",
+									"type": "text"
+								},
+								{
+									"key": "rail_sathi_complain_media_files",
+									"type": "file",
+									"src": [
+										"/Users/harsh/Desktop/2fa.png",
+										"/Users/harsh/Desktop/AtulAnand.jpeg"
+									]
+								},
+								{
+									"key": "created_by",
+									"value": "test harsh",
+									"type": "text"
+								},
+								{
+									"key": "complain_status",
+									"value": "pending",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/rs_microservice/complaint/delete/139",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"rs_microservice",
+								"complaint",
+								"delete",
+								"139"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "date",
+							"value": "Wed, 23 Jul 2025 10:12:21 GMT"
+						},
+						{
+							"key": "server",
+							"value": "uvicorn"
+						},
+						{
+							"key": "content-length",
+							"value": "44"
+						},
+						{
+							"key": "content-type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"message\": \"Complaint deleted successfully\"\n}"
+				}
+			]
+		},
+		{
+			"name": "delete-complaint-media",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "",
+							"value": "'{\n    \"pnr_number\": \"1234567890\",\n    \"is_pnr_validated\": \"not-attempted\",\n    \"name\": \"Harsh\",\n    \"mobile_number\": \"9999999999\",\n    \"complain_type\": \"Cleanliness\",\n    \"complain_description\": \"Coach is dirty.\",\n    \"complain_date\": \"2025-06-11\",\n    \"complain_status\": \"pending\",\n    \"train_id\": 123,\n    \"train_number\": \"12345\",\n    \"train_name\": \"Express Train\",\n    \"coach\": \"B1\",\n    \"berth_no\": 21,\n    \"created_by\": \"harshm\",\n    \"rail_sathi_complain_media_files\": [\n      {\n        \"media_type\": \"image\",\n        \"media_url\": \"http://example.com/image.jpg\",\n        \"created_by\": \"harshm\",\n        \"updated_by\": \"harshm\"\n      }\n    ]\n  }'",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "name",
+							"value": "Pankaj",
+							"type": "text"
+						},
+						{
+							"key": "mobile_number",
+							"value": "9534117000",
+							"type": "text"
+						},
+						{
+							"key": "complain_type",
+							"value": "\"Bed-Ball\"",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "complain_description",
+							"value": "\"Bed mein chipkali\"",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "train_number",
+							"value": "12345",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "coach",
+							"value": "A2",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "berth_no",
+							"value": "8",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "complain_date",
+							"value": "",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "updated_by",
+							"value": "harsh",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "train_depot",
+							"value": "SYAE",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "rail_sathi_complain_media_files",
+							"type": "file",
+							"src": [
+								"/Users/harsh/Desktop/2fa.png",
+								"/Users/harsh/Desktop/AtulAnand.jpeg"
+							],
+							"disabled": true
+						},
+						{
+							"key": "created_by",
+							"value": "Pankaj",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "complain_status",
+							"value": "pending",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "deleted_media_ids",
+							"value": "23",
+							"type": "text"
+						},
+						{
+							"key": "complain_id",
+							"value": "50",
+							"type": "text",
+							"disabled": true
+						}
+					]
+				},
+				"url": {
+					"raw": "http://0.0.0.0:8000/media/delete/50",
+					"protocol": "http",
+					"host": [
+						"0",
+						"0",
+						"0",
+						"0"
+					],
+					"port": "8000",
+					"path": [
+						"media",
+						"delete",
+						"50"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "delete-complaint-media",
+					"originalRequest": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "",
+									"value": "'{\n    \"pnr_number\": \"1234567890\",\n    \"is_pnr_validated\": \"not-attempted\",\n    \"name\": \"Harsh\",\n    \"mobile_number\": \"9999999999\",\n    \"complain_type\": \"Cleanliness\",\n    \"complain_description\": \"Coach is dirty.\",\n    \"complain_date\": \"2025-06-11\",\n    \"complain_status\": \"pending\",\n    \"train_id\": 123,\n    \"train_number\": \"12345\",\n    \"train_name\": \"Express Train\",\n    \"coach\": \"B1\",\n    \"berth_no\": 21,\n    \"created_by\": \"harshm\",\n    \"rail_sathi_complain_media_files\": [\n      {\n        \"media_type\": \"image\",\n        \"media_url\": \"http://example.com/image.jpg\",\n        \"created_by\": \"harshm\",\n        \"updated_by\": \"harshm\"\n      }\n    ]\n  }'",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "name",
+									"value": "Pankaj",
+									"type": "text"
+								},
+								{
+									"key": "mobile_number",
+									"value": "9534117000",
+									"type": "text"
+								},
+								{
+									"key": "complain_type",
+									"value": "\"Bed-Ball\"",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "complain_description",
+									"value": "\"Bed mein chipkali\"",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "train_number",
+									"value": "12345",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "coach",
+									"value": "A2",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "berth_no",
+									"value": "8",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "complain_date",
+									"value": "",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "updated_by",
+									"value": "harsh",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "train_depot",
+									"value": "SYAE",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "rail_sathi_complain_media_files",
+									"type": "file",
+									"src": [
+										"/Users/harsh/Desktop/2fa.png",
+										"/Users/harsh/Desktop/AtulAnand.jpeg"
+									],
+									"disabled": true
+								},
+								{
+									"key": "created_by",
+									"value": "Pankaj",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "complain_status",
+									"value": "pending",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "deleted_media_ids",
+									"value": "23",
+									"type": "text"
+								},
+								{
+									"key": "complain_id",
+									"value": "50",
+									"type": "text",
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/rs_microservice/media/delete/139",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"rs_microservice",
+								"media",
+								"delete",
+								"139"
+							]
+						}
+					},
+					"status": "Not Found",
+					"code": 404,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "date",
+							"value": "Wed, 23 Jul 2025 10:12:52 GMT"
+						},
+						{
+							"key": "server",
+							"value": "uvicorn"
+						},
+						{
+							"key": "content-length",
+							"value": "32"
+						},
+						{
+							"key": "content-type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"detail\": \"Complaint not found\"\n}"
+				}
+			]
+		}
+	]
+}
