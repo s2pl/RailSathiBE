@@ -83,7 +83,7 @@ def send_passenger_complain_email(complain_details: Dict):
             SELECT u.* 
             FROM user_onboarding_user u 
             JOIN user_onboarding_roles ut ON u.user_type_id = ut.id 
-            WHERE ut.name = 'war room user' AND u.depo LIKE '%%{train_depot_name}%%'
+            WHERE ut.name IN ('war room user', 'war room user railsathi') AND u.depo LIKE '%%{train_depot_name}%%'
         """
         conn = get_db_connection()
         war_room_user_in_depot = execute_query(conn, war_room_user_query)
