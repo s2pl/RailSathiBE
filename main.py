@@ -75,7 +75,7 @@ class RailSathiComplainData(BaseModel):
     updated_by: Optional[str]
     # Add the missing fields from your actual data
     train_no: Optional[int]
-    customer_care: Optional[List[str]] = []
+    customer_care: Optional[str]
     train_depot: Optional[str]
     rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse]
 
