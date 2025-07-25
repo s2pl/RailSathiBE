@@ -214,10 +214,10 @@ async def create_complaint_endpoint_threaded(
             "created_by": name
         }
         
-        # Initialize default values
+       # Initialize default values
         train_depot_name = ''
-        war_room_phones = []
-        
+        war_room_phone = ''  # changed from list to string
+
         # Step 1: Get depot information
         if train_number:
             get_depot_query = f"""
@@ -235,29 +235,30 @@ async def create_complaint_endpoint_threaded(
             finally:
                 conn.close()
 
-            # Step 2: Fetch war room users whose `depo` matches the train depot
+            # Step 2: Fetch war room user phone number
             if train_depot_name:
                 war_room_user_query = f"""
                     SELECT u.phone
                     FROM user_onboarding_user u
                     JOIN user_onboarding_roles ut ON u.user_type_id = ut.id
-                    WHERE ut.name = 'war room user'
+                    WHERE ut.name = 'war room user railsathi'
                     AND u.depo LIKE '%{train_depot_name}%'
                     AND u.phone IS NOT NULL
                     AND u.phone != ''
+                    LIMIT 1
                 """
 
                 conn = get_db_connection()
                 try:
                     war_room_user_in_depot = execute_query(conn, war_room_user_query)
-                    # Extract phone numbers into a list
-                    war_room_phones = [row['phone'] for row in war_room_user_in_depot if row.get('phone')]
-                    print(f"War room phones found: {war_room_phones}")
+                    war_room_phone = war_room_user_in_depot[0]['phone'] if war_room_user_in_depot else ''
+                    print(f"War room phone found: {war_room_phone}")
                 except Exception as e:
-                    logger.error(f"Error fetching war room users: {str(e)}")
-                    war_room_phones = []
+                    logger.error(f"Error fetching war room user: {str(e)}")
+                    war_room_phone = ''
                 finally:
                     conn.close()
+
         
         # Create complaint
         complaint = create_complaint(complaint_data)
@@ -315,12 +316,12 @@ async def create_complaint_endpoint_threaded(
         updated_complaint = get_complaint_by_id(complain_id)
         
         # Ensure customer_care and train_depot are added to the response
-        updated_complaint["customer_care"] = war_room_phones
+        updated_complaint["customer_care"] = war_room_phone
         updated_complaint["train_depot"] = train_depot_name
         # Add this right before the return statement
         print(f"DEBUG - train_number: {train_number}")
         print(f"DEBUG - train_depot_name: '{train_depot_name}'")
-        print(f"DEBUG - war_room_phones: {war_room_phones}")
+        print(f"DEBUG - war_room_phones: {war_room_phone}")
         print(f"DEBUG - updated_complaint keys: {list(updated_complaint.keys())}")
         
         print(f"Final complaint data retrieved with {len(updated_complaint.get('rail_sathi_complain_media_files', []))} media files")
