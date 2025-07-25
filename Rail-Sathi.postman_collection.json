@@ -278,6 +278,163 @@
 							]
 						},
 						"url": {
+							"raw": "https://railops-uat-api.biputri.com/rs_microservice/complaint/add/",
+							"protocol": "https",
+							"host": [
+								"railops-uat-api",
+								"biputri",
+								"com"
+							],
+							"path": [
+								"rs_microservice",
+								"complaint",
+								"add",
+								""
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Date",
+							"value": "Fri, 25 Jul 2025 07:13:07 GMT"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"key": "Transfer-Encoding",
+							"value": "chunked"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Server",
+							"value": "cloudflare"
+						},
+						{
+							"key": "Nel",
+							"value": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}"
+						},
+						{
+							"key": "Cf-Cache-Status",
+							"value": "DYNAMIC"
+						},
+						{
+							"key": "Report-To",
+							"value": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=kbDYlc55HhbQ4catsI1d52xF43KrqZJa2qDRcTFW9mGBiK%2BEbiZAOehy4kHGO9Lusq29l5AakyA4337hjR5QagM2iARCkFH5lOYn1rqblvunoblDx6BbTccDVBa6v9TGL3P4a3o%3D\"}]}"
+						},
+						{
+							"key": "Content-Encoding",
+							"value": "br"
+						},
+						{
+							"key": "CF-RAY",
+							"value": "9649da4c0de0d8b2-MRS"
+						},
+						{
+							"key": "alt-svc",
+							"value": "h3=\":443\"; ma=86400"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"message\": \"Complaint created successfully\",\n    \"data\": {\n        \"complain_id\": 165,\n        \"pnr_number\": \"6254120861\",\n        \"is_pnr_validated\": \"attempted-success\",\n        \"name\": \"test harsh\",\n        \"mobile_number\": \"9534117011\",\n        \"complain_type\": null,\n        \"complain_description\": \"test email, please avoid\",\n        \"complain_date\": \"2025-07-25\",\n        \"complain_status\": \"pending\",\n        \"train_id\": 127,\n        \"train_number\": \"12345\",\n        \"train_name\": \"HWH-GHY, SARAIGHAT EXP\",\n        \"coach\": \"B6\",\n        \"berth_no\": 65,\n        \"created_at\": \"2025-07-25T07:13:06.297644Z\",\n        \"created_by\": \"test harsh\",\n        \"updated_at\": \"2025-07-25T07:13:06.297644Z\",\n        \"updated_by\": null,\n        \"train_no\": 12345,\n        \"customer_care\": \"6290731420\",\n        \"train_depot\": \"SYAE\",\n        \"rail_sathi_complain_media_files\": []\n    }\n}"
+				},
+				{
+					"name": "updated",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "pnr_value",
+									"value": "'{\n    \"pnr_number\": \"1234567890\",\n    \"is_pnr_validated\": \"not-attempted\",\n    \"name\": \"Harsh\",\n    \"mobile_number\": \"9999999999\",\n    \"complain_type\": \"Cleanliness\",\n    \"complain_description\": \"Coach is dirty.\",\n    \"complain_date\": \"2025-06-11\",\n    \"complain_status\": \"pending\",\n    \"train_id\": 123,\n    \"train_number\": \"12345\",\n    \"train_name\": \"Express Train\",\n    \"coach\": \"B1\",\n    \"berth_no\": 21,\n    \"created_by\": \"harshm\",\n    \"rail_sathi_complain_media_files\": [\n      {\n        \"media_type\": \"image\",\n        \"media_url\": \"http://example.com/image.jpg\",\n        \"created_by\": \"harshm\",\n        \"updated_by\": \"harshm\"\n      }\n    ]\n  }'",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "name",
+									"value": "test harsh",
+									"type": "text"
+								},
+								{
+									"key": "mobile_number",
+									"value": "9534117011",
+									"type": "text"
+								},
+								{
+									"key": "complain_type",
+									"value": "\"Bed-Roll\"",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "complain_description",
+									"value": "test email, please avoid",
+									"type": "text"
+								},
+								{
+									"key": "train_number",
+									"value": "12345",
+									"type": "text"
+								},
+								{
+									"key": "coach",
+									"value": "B6",
+									"type": "text"
+								},
+								{
+									"key": "berth_no",
+									"value": "65",
+									"type": "text"
+								},
+								{
+									"key": "complain_date",
+									"value": "",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "updated_by",
+									"value": "Test",
+									"type": "text"
+								},
+								{
+									"key": "train_depot",
+									"value": "ZNA",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "rail_sathi_complain_media_files",
+									"type": "file",
+									"src": "/Users/harsh/Documents/harsh.jpg"
+								},
+								{
+									"key": "date_of_journey",
+									"value": "2025-07-20",
+									"type": "text"
+								},
+								{
+									"key": "pnr_number",
+									"value": "6254120861",
+									"type": "text"
+								},
+								{
+									"key": "is_pnr_validated",
+									"value": "attempted-success",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
 							"raw": "http://127.0.0.1:8000/rs_microservice/complaint/add/",
 							"protocol": "http",
 							"host": [
@@ -301,7 +458,7 @@
 					"header": [
 						{
 							"key": "date",
-							"value": "Thu, 24 Jul 2025 06:16:51 GMT"
+							"value": "Fri, 25 Jul 2025 07:12:32 GMT"
 						},
 						{
 							"key": "server",
@@ -309,7 +466,7 @@
 						},
 						{
 							"key": "content-length",
-							"value": "1070"
+							"value": "964"
 						},
 						{
 							"key": "content-type",
@@ -317,7 +474,7 @@
 						}
 					],
 					"cookie": [],
-					"body": "{\n    \"message\": \"Complaint created successfully\",\n    \"data\": {\n        \"complain_id\": 147,\n        \"pnr_number\": \"6254120861\",\n        \"is_pnr_validated\": \"attempted-success\",\n        \"name\": \"test harsh\",\n        \"mobile_number\": \"9534117011\",\n        \"complain_type\": null,\n        \"complain_description\": \"test email, please avoid\",\n        \"complain_date\": \"2025-07-24\",\n        \"complain_status\": \"pending\",\n        \"train_id\": 127,\n        \"train_number\": \"12345\",\n        \"train_name\": \"HWH-GHY, SARAIGHAT EXP\",\n        \"coach\": \"B6\",\n        \"berth_no\": 65,\n        \"created_at\": \"2025-07-24T11:46:55.382709Z\",\n        \"created_by\": \"test harsh\",\n        \"updated_at\": \"2025-07-24T11:46:55.382709Z\",\n        \"updated_by\": null,\n        \"train_no\": 12345,\n        \"customer_care\": [\n            \"6290713014\",\n            \"7074901429\",\n            \"6290731420\",\n            \"8252039901\",\n            \"6290731917\",\n            \"7903043552\",\n            \"8355003958\",\n            \"9852251637\",\n            \"9852024070\"\n        ],\n        \"train_depot\": \"SYAE\",\n        \"rail_sathi_complain_media_files\": [\n            {\n                \"id\": 63,\n                \"media_type\": \"image\",\n                \"media_url\": \"https://storage.googleapis.com/sanchalak-media-bucket1/rail_sathi_complain_images/rail_sathi_complain_147_2025-07-24_114656571124_af97f.jpg\",\n                \"created_at\": \"2025-07-24T11:46:58.297049Z\",\n                \"updated_at\": \"2025-07-24T11:46:58.297049Z\",\n                \"created_by\": \"test harsh\",\n                \"updated_by\": null\n            }\n        ]\n    }\n}"
+					"body": "{\n    \"message\": \"Complaint created successfully\",\n    \"data\": {\n        \"complain_id\": 164,\n        \"pnr_number\": \"6254120861\",\n        \"is_pnr_validated\": \"attempted-success\",\n        \"name\": \"test harsh\",\n        \"mobile_number\": \"9534117011\",\n        \"complain_type\": null,\n        \"complain_description\": \"test email, please avoid\",\n        \"complain_date\": \"2025-07-25\",\n        \"complain_status\": \"pending\",\n        \"train_id\": 127,\n        \"train_number\": \"12345\",\n        \"train_name\": \"HWH-GHY, SARAIGHAT EXP\",\n        \"coach\": \"B6\",\n        \"berth_no\": 65,\n        \"created_at\": \"2025-07-25T12:42:36.504121Z\",\n        \"created_by\": \"test harsh\",\n        \"updated_at\": \"2025-07-25T12:42:36.504121Z\",\n        \"updated_by\": null,\n        \"train_no\": 12345,\n        \"customer_care\": \"6290731420\",\n        \"train_depot\": \"SYAE\",\n        \"rail_sathi_complain_media_files\": [\n            {\n                \"id\": 69,\n                \"media_type\": \"image\",\n                \"media_url\": \"https://storage.googleapis.com/sanchalak-media-bucket1/rail_sathi_complain_images/rail_sathi_complain_164_2025-07-25_124237630389_b332d.jpg\",\n                \"created_at\": \"2025-07-25T12:42:39.261909Z\",\n                \"updated_at\": \"2025-07-25T12:42:39.261909Z\",\n                \"created_by\": \"test harsh\",\n                \"updated_by\": null\n            }\n        ]\n    }\n}"
 				}
 			]
 		},
