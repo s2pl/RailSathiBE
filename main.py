@@ -10,7 +10,7 @@ import logging
 from services import (
     create_complaint, get_complaint_by_id, get_complaints_by_date,
     update_complaint, delete_complaint, delete_complaint_media,
-    upload_file_thread, send_wrur_alert_email_via_microservice
+    upload_file_thread
 )
 
 from database import get_db_connection, execute_query
