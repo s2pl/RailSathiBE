@@ -269,6 +269,8 @@ async def create_complaint_endpoint_threaded(
                 
                 # Prepare email details
                 env = os.getenv('ENV')
+                if not train_depot_name:
+                    train_depot_name = "(Not found in database)"
 
                 if env == 'UAT':
                     subject = f"UAT | No War Room User RailSathi(WRUR) Found !"
@@ -278,10 +280,10 @@ async def create_complaint_endpoint_threaded(
                     subject = f"LOCAL | No War Room User RailSathi(WRUR) Found !"
                     
                 message = f"""
-                No War Room User RailSathi (WRUR) is mapped for Train Number: {train_number} of Depot: {train_depot_name} for PNR Number: {pnr_number}, 
-                travelling on {date_of_journey}.
-
-                Kindly verify the depot mapping in the database for the given train and ensure appropriate WRUR assignment.
+                No War Room User RailSathi (WRUR) exists for PNR Number: {pnr_number} in Train Number: {train_number} travelling on {date_of_journey}.
+                Train Depot: {train_depot_name} 
+                
+                Kindly verify the WRUR assignment to the given train depot.
                 """
                 
                 # Send email using the plain mail function
