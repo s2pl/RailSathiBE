@@ -10,9 +10,13 @@ import logging
 from services import (
     create_complaint, get_complaint_by_id, get_complaints_by_date,
     update_complaint, delete_complaint, delete_complaint_media,
-    upload_file_thread
+    upload_file_thread, send_wrur_alert_email_via_microservice
 )
+
 from database import get_db_connection, execute_query
+import os
+from dotenv import load_dotenv
+from utils.email_utils import send_plain_mail
 
 app = FastAPI(
     title="Rail Sathi Complaint API",
@@ -252,14 +256,55 @@ async def create_complaint_endpoint_threaded(
                 try:
                     war_room_user_in_depot = execute_query(conn, war_room_user_query)
                     war_room_phone = war_room_user_in_depot[0]['phone'] if war_room_user_in_depot else ''
-                    print(f"War room phone found: {war_room_phone}")
+                    # print(f"War room phone found: {war_room_phone}")
                 except Exception as e:
                     logger.error(f"Error fetching war room user: {str(e)}")
                     war_room_phone = ''
                 finally:
                     conn.close()
+                    
+            if not war_room_phone:
+                war_room_phone = "9123183988"
+                # print("Starting mail content formation for no wrur Using default war room phone: 9123183988")
+                
+                # Prepare email details
+                env = os.getenv('ENV')
 
-        
+                if env == 'UAT':
+                    subject = f"UAT | No War Room User RailSathi(WRUR) Found !"
+                elif env == 'PROD':
+                    subject = f"No War Room User RailSathi(WRUR) Found !"  
+                else:
+                    subject = f"LOCAL | No War Room User RailSathi(WRUR) Found !"
+                    
+                message = f"""
+                No War Room User RailSathi (WRUR) is mapped for Train Number: {train_number} of Depot: {train_depot_name} for PNR Number: {pnr_number}, 
+                travelling on {date_of_journey}.
+
+                Kindly verify the depot mapping in the database for the given train and ensure appropriate WRUR assignment.
+                """
+                
+                # Send email using the plain mail function
+                
+                load_dotenv()  # Load environment variables from .env file
+                from_ = os.getenv("MAIL_FROM")  # Get sender email from .env
+                to = ["contact@suvidhaen.com"]
+                # print(f"Sending war room alert email to {to} with subject '{subject}'")
+                success = send_plain_mail(
+                    subject=subject,
+                    message=message,
+                    from_=from_,
+                    to=to
+                )
+               
+                
+                if success:
+                    logging.info(f"War room alert email sent successfully for PNR: {pnr_number}")
+                    print (f"Email sent successfully: {success}")
+                else:
+                    logging.error(f"Failed to send war room alert email for PNR: {pnr_number}")
+                    print(f"Email sending failed: {success}")
+                
         # Create complaint
         complaint = create_complaint(complaint_data)
         complain_id = complaint["complain_id"]
@@ -314,7 +359,6 @@ async def create_complaint_endpoint_threaded(
         
         # Get updated complaint with media files
         updated_complaint = get_complaint_by_id(complain_id)
-        
         # Ensure customer_care and train_depot are added to the response
         updated_complaint["customer_care"] = war_room_phone
         updated_complaint["train_depot"] = train_depot_name
