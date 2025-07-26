@@ -103,6 +103,7 @@ def send_passenger_complain_email(complain_details: Dict):
             WHERE ut.name IN ('war room user', 'war room user railsathi') AND '{train_depot_name}' = ANY (
                 SELECT TRIM(unnest(string_to_array(u.depo, ',')))
             )
+
         """
         conn = get_db_connection()
         war_room_user_in_depot = execute_query(conn, war_room_user_query)
@@ -115,6 +116,7 @@ def send_passenger_complain_email(complain_details: Dict):
             WHERE ut.name = 's2 admin' AND '{train_depot_name}' = ANY (
                 SELECT TRIM(unnest(string_to_array(u.depo, ',')))
             )
+
         """
         conn = get_db_connection()
         s2_admin_users = execute_query(conn, s2_admin_query)
