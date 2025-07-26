@@ -23,23 +23,40 @@ def send_plain_mail(subject: str, message: str, from_: str, to: List[str], cc: L
             logging.info("All emails were skipped - no valid recipients.")
             return True
 
-        # Create email message
-        email = MessageSchema(
-            subject=subject,
-            recipients=valid_emails,  # This should be a list, not a string
-            cc=valid_cc_emails if valid_cc_emails else None,  # Add CC support
-            body=message,
-            subtype="plain"
-        )
+        # Create email message - only include cc if there are valid CC emails
+        email_params = {
+            "subject": subject,
+            "recipients": valid_emails,
+            "body": message,
+            "subtype": "plain"
+        }
+        
+        # Only add cc parameter if there are valid CC emails
+        if valid_cc_emails:
+            email_params["cc"] = valid_cc_emails
+
+        email = MessageSchema(**email_params)
 
         # Send email using FastMail
         fm = FastMail(conf)
         
-        # Use asyncio to run the async send_message method
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(fm.send_message(email))
-        loop.close()
+        # Handle async call when event loop is already running
+        import asyncio
+        import threading
+        
+        def send_email_sync():
+            # Create a new event loop in a separate thread
+            new_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(new_loop)
+            try:
+                new_loop.run_until_complete(fm.send_message(email))
+            finally:
+                new_loop.close()
+        
+        # Run in a separate thread to avoid event loop conflicts
+        thread = threading.Thread(target=send_email_sync)
+        thread.start()
+        thread.join()
         
         cc_info = f" with CC to: {', '.join(valid_cc_emails)}" if valid_cc_emails else ""
         logging.info(f"Email sent successfully to: {', '.join(valid_emails)}{cc_info}")
@@ -89,7 +106,7 @@ def send_passenger_complain_email(complain_details: Dict):
         war_room_user_in_depot = execute_query(conn, war_room_user_query)
         conn.close()  
             
-        s2_admin_query = """
+        s2_admin_query = f"""
             SELECT u.* 
             FROM user_onboarding_user u 
             JOIN user_onboarding_roles ut ON u.user_type_id = ut.id 
