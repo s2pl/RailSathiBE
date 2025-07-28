@@ -273,14 +273,15 @@ async def create_complaint_endpoint_threaded(
                     train_depot_name = "(Not found in database)"
 
                 if env == 'UAT':
-                    subject = f"UAT | No War Room User RailSathi(WRUR) Found !"
+                    subject = f"UAT | {train_number} ({train_depot_name}) No War Room User RailSathi(WRUR) Found !"
                 elif env == 'PROD':
-                    subject = f"No War Room User RailSathi(WRUR) Found !"  
+                    subject = f"{train_number} ({train_depot_name} No War Room User RailSathi(WRUR) Found !"  
                 else:
-                    subject = f"LOCAL | No War Room User RailSathi(WRUR) Found !"
+                    subject = f"LOCAL | {train_number} ({train_depot_name} No War Room User RailSathi(WRUR) Found !"
                     
                 message = f"""
-                No War Room User RailSathi (WRUR) exists for PNR Number: {pnr_number} in Train Number: {train_number} travelling on {date_of_journey}.
+                No War Room User RailSathi (WRUR) exists for PNR Number: {pnr_number} in Train Number: {train_number} travelling on {date_of_journey}
+                in {coach}/{berth_no} 
                 Train Depot: {train_depot_name} 
                 
                 Kindly verify the WRUR assignment to the given train depot.
@@ -310,11 +311,11 @@ async def create_complaint_endpoint_threaded(
         # Create complaint
         complaint = create_complaint(complaint_data)
         complain_id = complaint["complain_id"]
-        print(f"Complaint created with ID: {complain_id}")
+        # print(f"Complaint created with ID: {complain_id}")
         
         # Handle file uploads if any files are provided
         if rail_sathi_complain_media_files and len(rail_sathi_complain_media_files) > 0:
-            print(f"Processing {len(rail_sathi_complain_media_files)} files")
+            # print(f"Processing {len(rail_sathi_complain_media_files)} files")
             
             # Read all file contents first (before threading)
             file_data_list = []
@@ -361,18 +362,9 @@ async def create_complaint_endpoint_threaded(
         
         # Get updated complaint with media files
         updated_complaint = get_complaint_by_id(complain_id)
-        # Ensure customer_care and train_depot are added to the response
         updated_complaint["customer_care"] = war_room_phone
         updated_complaint["train_depot"] = train_depot_name
-        # Add this right before the return statement
-        print(f"DEBUG - train_number: {train_number}")
-        print(f"DEBUG - train_depot_name: '{train_depot_name}'")
-        print(f"DEBUG - war_room_phones: {war_room_phone}")
-        print(f"DEBUG - updated_complaint keys: {list(updated_complaint.keys())}")
-        
-        print(f"Final complaint data retrieved with {len(updated_complaint.get('rail_sathi_complain_media_files', []))} media files")
-        print(f"Customer care phones in response: {updated_complaint['customer_care']}")
-        print(f"Train depot in response: {updated_complaint['train_depot']}")
+  
 
         return {
             "message": "Complaint created successfully",
