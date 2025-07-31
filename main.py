@@ -246,12 +246,16 @@ async def create_complaint_endpoint_threaded(
                     FROM user_onboarding_user u
                     JOIN user_onboarding_roles ut ON u.user_type_id = ut.id
                     WHERE ut.name = 'war room user railsathi'
-                    AND u.depo LIKE '%{train_depot_name}%'
+                    AND (
+                        u.depo = '{train_depot_name}'
+                        OR u.depo LIKE '{train_depot_name},%'
+                        OR u.depo LIKE '%,{train_depot_name},%'
+                        OR u.depo LIKE '%,{train_depot_name}'
+                    )
                     AND u.phone IS NOT NULL
                     AND u.phone != ''
                     LIMIT 1
                 """
-
                 conn = get_db_connection()
                 try:
                     war_room_user_in_depot = execute_query(conn, war_room_user_query)
