@@ -479,7 +479,7 @@ def get_complaints_by_date(complain_date: date, mobile_number: str):
         conn.close()
 
 def update_complaint(complain_id: int, update_data: dict):
-    """Update complaint"""
+    """Update complaint and trigger passenger complaint email"""
     conn = get_db_connection()
     try:
         # Validate and process train data
@@ -500,7 +500,7 @@ def update_complaint(complain_id: int, update_data: dict):
             'pnr_number', 'is_pnr_validated', 'name', 'mobile_number', 
             'complain_type', 'complain_description', 'complain_date', 
             'complain_status', 'train_id', 'train_number', 'train_name', 
-            'coach', 'berth_no', 'updated_by'
+            'coach', 'berth_no', 'updated_by', 'date_of_journey', 'submission_status'
         ]
         
         for field in allowed_fields:
@@ -526,7 +526,77 @@ def update_complaint(complain_id: int, update_data: dict):
         cursor.execute(query, tuple(values))
         conn.commit()
         
-        return get_complaint_by_id(complain_id)
+        # ✅ Get updated complaint data for email
+        updated_complaint = get_complaint_by_id(complain_id)
+        
+        # ✅ Send passenger complaint email in separate thread (same as create_complaint)
+        def _send_email(complaint_data, complaint_id):
+            try:
+                logger.info(f"Email thread started for updated complaint {complaint_id}")
+                
+                # Handle date_of_journey - use current date if not provided or invalid
+                date_of_journey_str = complaint_data.get('date_of_journey') or complaint_data.get('complain_date')
+                if date_of_journey_str:
+                    try:
+                        if isinstance(date_of_journey_str, str):
+                            date_of_journey = datetime.strptime(date_of_journey_str, "%Y-%m-%d")
+                        else:
+                            date_of_journey = datetime.combine(date_of_journey_str, datetime.min.time())
+                    except (ValueError, TypeError):
+                        date_of_journey = datetime.now()
+                else:
+                    date_of_journey = datetime.now()
+                
+                train_depo = ''
+                if complaint_data.get('train_id'):
+                    train_query = "SELECT * FROM trains_traindetails WHERE id = %s"
+                    train_conn = get_db_connection()
+                    train = execute_query_one(train_conn, train_query, (complaint_data['train_id'],))
+                    train_conn.close()
+                    if train:
+                        train_depo = train.get('Depot', '')
+                elif complaint_data.get('train_number'):
+                    train_query = "SELECT * FROM trains_traindetails WHERE train_no = %s"
+                    train_conn = get_db_connection()
+                    train = execute_query_one(train_conn, train_query, (complaint_data['train_number'],))
+                    train_conn.close()
+                    if train:
+                        train_depo = train.get('Depot', '')
+                
+                details = {
+                    'train_no': complaint_data.get('train_number', ''),
+                    'train_name': complaint_data.get('train_name', ''),
+                    'user_phone_number': complaint_data.get('mobile_number', ''),
+                    'passenger_name': complaint_data.get('name', ''),
+                    'pnr': complaint_data.get('pnr_number', ''),
+                    'berth': complaint_data.get('berth_no', ''),
+                    'coach': complaint_data.get('coach', ''),
+                    'complain_id': complaint_id,
+                    'description': complaint_data.get('complain_description', ''),
+                    'train_depo': train_depo,
+                    'date_of_journey': date_of_journey.strftime("%d %b %Y"),
+                }
+                
+                logger.info(f"Sending passenger complaint email for updated complaint {complaint_id} to war room users")
+                send_passenger_complain_email(details)
+                logger.info(f"Passenger complaint email sent successfully for updated complaint {complaint_id}")
+            except Exception as e:
+                logger.error(f"Email thread failure for updated complaint {complaint_id}: {str(e)}")
+        
+        try:
+            email_thread = threading.Thread(
+                target=_send_email,
+                args=(updated_complaint, complain_id),
+                name=f"EmailThread-Update-{complain_id}"
+            )
+            email_thread.daemon = True
+            logger.info(f"Starting passenger complaint email thread for updated complaint {complain_id}")
+            email_thread.start()
+            logger.info(f"Passenger complaint email thread started with name {email_thread.name}")
+        except Exception as e:
+            logger.error(f"Failed to create passenger complaint email thread: {str(e)}")
+        
+        return updated_complaint
     finally:
         conn.close()
 
