@@ -8,7 +8,7 @@ from datetime import datetime, date
 from typing import List, Dict, Optional, Any
 from google.cloud import storage
 from PIL import Image
-from moviepy.editor import VideoFileClip
+from moviepy import *
 from urllib.parse import unquote
 from database import get_db_connection, execute_query, execute_query_one
 from utils.email_utils import send_plain_mail, send_passenger_complain_email

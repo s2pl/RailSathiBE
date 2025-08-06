@@ -1,5 +1,5 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends, Request, APIRouter
+from fastapi.responses import JSONResponse 
 from typing import List, Optional
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,13 +13,15 @@ from services import (
     upload_file_thread
 )
 
-from utils.complaint_enrichment import enrich_complaint_response_and_trigger_email
-
-
 from database import get_db_connection, execute_query
 import os
 from dotenv import load_dotenv
 from utils.email_utils import send_plain_mail
+from utils.complaint_enrichment import enrich_complaint_response_and_trigger_email
+
+from fastapi.openapi.utils import get_openapi
+from utils.auth import get_current_user
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 app = FastAPI(
     title="Rail Sathi Complaint API",
@@ -30,11 +32,12 @@ app = FastAPI(
     redoc_url="/rs_microservice/redoc"            # Add the prefix here (optional)
 )
 
+load_dotenv()
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from database import get_db_connection
 from psycopg2.extras import RealDictCursor
 
 
@@ -46,12 +49,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+security_scheme = HTTPBearer()
+
+@app.post("/login")
+async def login(username: str = Form(...), password: str = Form(...)):
+    if username == "admin" and password == "admin":
+        return {"access_token": "test123", "token_type": "bearer"}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password"
+        )
+    
+
 @app.get("/rs_microservice")
 async def root():
     return {"message": "Rail Sathi Microservice is running"}
 
 
 class RailSathiComplainMediaResponse(BaseModel):
+    
     id: int
     media_type: Optional[str]
     media_url: Optional[str]
@@ -491,6 +508,75 @@ async def update_complaint_endpoint(
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+@app.patch("/rs_microservice/complaint/update/auth/{complain_id}", response_model=RailSathiComplainResponse)
+async def update_complaint_endpoint_auth(
+    complain_id: int,
+    pnr_number: Optional[str] = Form(None),
+    is_pnr_validated: Optional[str] = Form(None),
+    name: Optional[str] = Form(None),
+    mobile_number: Optional[str] = Form(None),
+    complain_type: Optional[str] = Form(None),
+    complain_description: Optional[str] = Form(None),
+    complain_date: Optional[str] = Form(None),
+    complain_status: Optional[str] = Form(None),
+    train_id: Optional[int] = Form(None),
+    train_number: Optional[str] = Form(None),
+    train_name: Optional[str] = Form(None),
+    coach: Optional[str] = Form(None),
+    berth_no: Optional[int] = Form(None),
+    rail_sathi_complain_media_files: List[UploadFile] = File(default=[]),
+    auth: str = Depends(get_current_user)
+):
+    try:
+        print(f"[DUMMY AUTH] Received complaint update for ID: {complain_id}")
+        print(f"[DUMMY AUTH] Number of files received: {len(rail_sathi_complain_media_files)}")
+        await asyncio.sleep(1)
+
+        return {
+            "message": "complaint update successful (AUTH version)",
+            "data": {
+                "complain_id": complain_id,
+                "pnr_number": pnr_number,
+                "is_pnr_validated": is_pnr_validated,
+                "name": name,
+                "mobile_number": mobile_number,
+                "complain_type": complain_type,
+                "complain_description": complain_description,
+                "complain_date": complain_date,
+                "complain_status": complain_status,
+                "train_id": train_id,
+                "train_number": train_number,
+                "train_name": train_name,
+                "coach": coach,
+                "berth_no": berth_no,
+                "created_at": datetime.utcnow(),
+                "created_by": "dummy_user",
+                "updated_at": datetime.utcnow(),
+                "updated_by": "dummy_user",
+                "train_no": 0,
+                "customer_care": "dummy",
+                "train_depot": "dummy",
+                "rail_sathi_complain_media_files": [
+                    {
+                        "id": 1,
+                        "media_type": file.content_type,
+                        "media_url": file.filename,
+                        "created_at": datetime.utcnow(),
+                        "updated_at": datetime.utcnow(),
+                        "created_by": "dummy_user",
+                        "updated_by": "dummy_user"
+                    }
+                    for file in rail_sathi_complain_media_files
+                ]
+            }
+        }
+
+    except Exception as e:
+        import traceback
+        print("[DUMMY AUTH] Error:", str(e))
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail="Internal Server Error during dummy test")
+    
 
 @app.put("/rs_microservice/complaint/update/{complain_id}", response_model=RailSathiComplainResponse)
 async def replace_complaint_endpoint(
@@ -758,82 +844,31 @@ async def health_check():
     """Health check endpoint"""
     return {"status": "healthy"}
 
-async def enrich_complaint_response_and_trigger_email(
-    complain_id: int,
-    pnr_number: Optional[str],
-    train_number: Optional[str],
-    coach: Optional[str],
-    berth_no: Optional[int],
-    date_of_journey: Optional[str],
-) -> dict:
-    train_depot_name = ''
-    war_room_phone = ''
-    
-    # Step 1: Get depot info
-    if train_number:
-        get_depot_query = f"""
-            SELECT "Depot" FROM trains_traindetails 
-            WHERE train_no = '{train_number}' LIMIT 1
-        """
-        conn = get_db_connection()
-        try:
-            depot_result = execute_query(conn, get_depot_query)
-            train_depot_name = depot_result[0]['Depot'] if depot_result else ''
-        except Exception as e:
-            logger.error(f"Error fetching depot: {str(e)}")
-        finally:
-            conn.close()
 
-    # Step 2: Get WRUR
-    if train_depot_name:
-        war_room_user_query = f"""
-            SELECT u.phone
-            FROM user_onboarding_user u
-            JOIN user_onboarding_roles ut ON u.user_type_id = ut.id
-            WHERE ut.name = 'war room user railsathi'
-            AND (
-                u.depo = '{train_depot_name}'
-                OR u.depo LIKE '{train_depot_name},%'
-                OR u.depo LIKE '%,{train_depot_name},%'
-                OR u.depo LIKE '%,{train_depot_name}'
-            )
-            AND u.phone IS NOT NULL
-            AND u.phone != ''
-            LIMIT 1
-        """
-        conn = get_db_connection()
-        try:
-            result = execute_query(conn, war_room_user_query)
-            war_room_phone = result[0]['phone'] if result else ''
-        except Exception as e:
-            logger.error(f"Error fetching WRUR: {str(e)}")
-        finally:
-            conn.close()
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="RailSathi API",
+        version="1.0.0",
+        description="This is the API for RailSathi with JWT auth enabled",
+        routes=app.routes,
+    )
+    openapi_schema["components"]["securitySchemes"] = {
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",  
+        }
+    }
+    for path in openapi_schema["paths"]:
+        for method in openapi_schema["paths"][path]:
+            if "security" not in openapi_schema["paths"][path][method]:
+                openapi_schema["paths"][path][method]["security"] = [{"BearerAuth": []}]
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
 
-    # Step 3: Send fallback email if WRUR not found
-    if not war_room_phone:
-        war_room_phone = "9123183988"
-        env = os.getenv("ENV")
-        subject = f"{env or 'LOCAL'} | {train_number} ({train_depot_name}) No War Room User RailSathi(WRUR) Found !"
-        message = f"""
-No War Room User RailSathi (WRUR) exists for PNR Number: {pnr_number} in Train Number: {train_number} 
-Coach/Berth: {coach}/{berth_no} on {date_of_journey}
-Train Depot: {train_depot_name}
-
-Kindly verify the WRUR assignment to the given train depot.
-"""
-        send_plain_mail(
-            subject=subject,
-            message=message,
-            from_=os.getenv("MAIL_FROM"),
-            to=["contact@suvidhaen.com"]
-        )
-
-    # Step 4: Fetch final complaint data with media
-    final_data = get_complaint_by_id(complain_id)
-    final_data["customer_care"] = war_room_phone
-    final_data["train_depot"] = train_depot_name
-    return final_data
+app.openapi = custom_openapi
 
 if __name__ == "__main__":
     import uvicorn
