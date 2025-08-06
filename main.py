@@ -1,3 +1,8 @@
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import Request
+from jose import JWTError, jwt
+from datetime import datetime, timedelta
+import functools
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends
 from fastapi.responses import JSONResponse
 from typing import List, Optional
@@ -18,6 +23,8 @@ import os
 from dotenv import load_dotenv
 from utils.email_utils import send_plain_mail
 
+load_dotenv()
+
 app = FastAPI(
     title="Rail Sathi Complaint API",
     description="API for handling rail complaints",
@@ -26,6 +33,70 @@ app = FastAPI(
     docs_url="/rs_microservice/docs",             # Add the prefix here
     redoc_url="/rs_microservice/redoc"            # Add the prefix here (optional)
 )
+
+#JWT configuration
+SECRET_KEY = os.getenv("JWT_SECRET_KEY","fallback_dummy_key")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES",30))
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/rs_microservice/token")
+
+#dummy use for JWT authentication
+fake_user= {"username": "testuser", "password": "1234"}
+
+#JWT token generator
+def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=30)):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + expires_delta
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+#Login Endpoint to get JWT token
+@app.post("/rs_microservice/token")
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Login endpoint to get JWT token"""
+    if form_data.username != fake_user["username"] or form_data.password != fake_user["password"]:
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect username or password"
+        )
+    access_token = create_access_token(
+        data={"sub": form_data.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+#User authentication Decorator
+def user_authentication(func):
+    """Check JWT token in Authorization header"""
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        request: Request = kwargs.get("request") or args[0]
+        auth_header = request.headers.get("Authorization")
+
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(
+                status_code=401,
+                detail="Not authenticated"
+            )
+        # Extract token from header
+        token = auth_header.split(" ")[1]
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            username: str = payload.get("sub")
+            if username is None:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid token"
+                )
+            kwargs["current_user"] = {"username": username}  # Inject logged in user
+
+        except JWTError:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid or expired token"
+            )
+        return await func(*args, **kwargs)
+
+    return wrapper
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -161,7 +232,11 @@ async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional
 
 @app.post("/rs_microservice/complaint/add", response_model=RailSathiComplainResponse)
 @app.post("/rs_microservice/complaint/add/", response_model=RailSathiComplainResponse)
+@user_authentication
 async def create_complaint_endpoint_threaded(
+    request: Request,
+    current_user: dict = None,
+
     pnr_number: Optional[str] = Form(None),
     is_pnr_validated: Optional[str] = Form("not-attempted"),
     name: Optional[str] = Form(None),
@@ -215,7 +290,7 @@ async def create_complaint_endpoint_threaded(
             "train_name": train_name,
             "coach": coach,
             "berth_no": berth_no,
-            "created_by": name
+            "created_by": current_user["username"] #changed to logged in user
         }
         
        # Initialize default values
