@@ -275,35 +275,35 @@ def test_gcs_connection():
         #print(f"✗ Failed to connect to GCS bucket: {e}")
         return False
     
-def validate_and_process_train_data(complaint_data):
-    """Validate and process train data"""
-    conn = get_db_connection()
-    try:
-        if complaint_data.get('train_id'):
-            # Get train details by ID
-            query = "SELECT * FROM trains_traindetails WHERE id = %s"
-            train = execute_query_one(conn, query, (complaint_data['train_id'],))
-            if train:
-                complaint_data['train_number'] = train['train_no']
-                complaint_data['train_name'] = train['train_name']
-        elif complaint_data.get('train_number'):
-            # Get train details by number
-            query = "SELECT * FROM trains_traindetails WHERE train_no = %s"
-            train = execute_query_one(conn, query, (complaint_data['train_number'],))
-            if train:
-                complaint_data['train_id'] = train['id']
-                complaint_data['train_name'] = train['train_name']
+# def validate_and_process_train_data(complaint_data):
+#     """Validate and process train data"""
+#     conn = get_db_connection()
+#     try:
+#         if complaint_data.get('train_id'):
+#             # Get train details by ID
+#             query = "SELECT * FROM trains_traindetails WHERE id = %s"
+#             train = execute_query_one(conn, query, (complaint_data['train_id'],))
+#             if train:
+#                 complaint_data['train_number'] = train['train_no']
+#                 complaint_data['train_name'] = train['train_name']
+#         elif complaint_data.get('train_number'):
+#             # Get train details by number
+#             query = "SELECT * FROM trains_traindetails WHERE train_no = %s"
+#             train = execute_query_one(conn, query, (complaint_data['train_number'],))
+#             if train:
+#                 complaint_data['train_id'] = train['id']
+#                 complaint_data['train_name'] = train['train_name']
         
-        return complaint_data
-    finally:
-        conn.close()
+#         return complaint_data
+#     finally:
+#         conn.close()
 
 def create_complaint(complaint_data):
     """Create a new complaint"""
     conn = get_db_connection()
     try:
         # Validate and process train data
-        complaint_data = validate_and_process_train_data(complaint_data)
+        # complaint_data = validate_and_process_train_data(complaint_data)
 
         # Handle date_of_journey - use current date if not provided or invalid
         date_of_journey_str = complaint_data.get('date_of_journey')
