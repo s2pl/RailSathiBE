@@ -81,7 +81,6 @@ class RailSathiComplainData(BaseModel):
     updated_at: datetime
     updated_by: Optional[str]
     # Add the missing fields from your actual data
-    train_no: Optional[int]
     customer_care: Optional[str]
     train_depot: Optional[str]
     rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse]
@@ -131,6 +130,7 @@ async def get_complaint(complain_id: int):
         logger.error(f"Error getting complaint {complain_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+
 @app.get("/rs_microservice/complaint/get/date/{date_str}", response_model=List[RailSathiComplainResponse])
 async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional[str] = None):
     """Get complaints by date and mobile number"""
@@ -144,23 +144,54 @@ async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional
         if not mobile_number:
             raise HTTPException(status_code=400, detail="mobile_number parameter is required")
         
+        # Validate mobile number format if needed
+        if not mobile_number.strip():
+            raise HTTPException(status_code=400, detail="mobile_number cannot be empty")
+        
         complaints = get_complaints_by_date(complaint_date, mobile_number)
+        
+        # Handle empty results
+        if not complaints:
+            return []
         
         # Wrap each complaint in the expected response format
         response_list = []
         for complaint in complaints:
-            response_list.append(RailSathiComplainResponse(
-                message="Complaint retrieved successfully",
-                data=complaint
-            ))
+            try:
+                # Ensure all required fields are present for RailSathiComplainResponse
+                if 'customer_care' not in complaint:
+                    complaint['customer_care'] = None
+                
+                response_list.append(RailSathiComplainResponse(
+                    message="Complaint retrieved successfully",
+                    data=complaint
+                ))
+            except Exception as validation_error:
+                logger.error(f"Error creating response for complaint: {str(validation_error)}")
+                logger.error(f"Complaint data: {complaint}")
+                # Add the missing field and try again
+                try:
+                    complaint['customer_care'] = None
+                    response_list.append(RailSathiComplainResponse(
+                        message="Complaint retrieved successfully",
+                        data=complaint
+                    ))
+                except Exception as retry_error:
+                    logger.error(f"Retry failed for complaint {complaint.get('complain_id')}: {str(retry_error)}")
+                    # Continue with other complaints rather than failing completely
+                    continue
         
         return response_list
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting complaints by date {date_str}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"Error getting complaints by date {date_str} for mobile {mobile_number}: {str(e)}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 
 @app.post("/rs_microservice/complaint/add", response_model=RailSathiComplainResponse)
 @app.post("/rs_microservice/complaint/add/", response_model=RailSathiComplainResponse)
