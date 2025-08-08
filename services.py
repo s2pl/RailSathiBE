@@ -452,29 +452,76 @@ def get_complaint_by_id(complain_id: int):
     finally:
         conn.close()
 
+
 def get_complaints_by_date(complain_date: date, mobile_number: str):
     """Get complaints by date and mobile number"""
     conn = get_db_connection()
     try:
+        # Fixed query - using train_id instead of train.id for the foreign key
         query = """
-            SELECT c.*, t.train_no, t.train_name, t."Depot" as train_depot
+            SELECT c.complain_id, c.pnr_number, c.is_pnr_validated, c.name, c.mobile_number,
+                   c.complain_type, c.complain_description, c.complain_date, c.complain_status,
+                   c.train_id, c.train_number, c.train_name, c.coach, c.berth_no,
+                   c.submission_status, c.created_at, c.created_by, c.updated_at, c.updated_by,
+                   t.train_name as train_detail_name, t."Depot" as train_depot
             FROM rail_sathi_railsathicomplain c
             LEFT JOIN trains_traindetails t ON c.train_id = t.id
             WHERE c.complain_date = %s AND c.mobile_number = %s
         """
         complaints = execute_query(conn, query, (complain_date, mobile_number))
         
+        if not complaints:
+            return []
+        
         # Get media files for each complaint
         for complaint in complaints:
-            media_query = """
-                SELECT id, media_type, media_url, created_at, updated_at, created_by, updated_by
-                FROM rail_sathi_railsathicomplainmedia
-                WHERE complain_id = %s
-            """
-            media_files = execute_query(conn, media_query, (complaint['complain_id'],))
-            complaint['rail_sathi_complain_media_files'] = media_files or []
+            # Use the correct field name - complain_id should be the key
+            complaint_id = complaint.get('complain_id')
+            if complaint_id:
+                media_query = """
+                    SELECT id, media_type, media_url, created_at, updated_at, created_by, updated_by
+                    FROM rail_sathi_railsathicomplainmedia
+                    WHERE complain_id = %s
+                """
+                try:
+                    media_files = execute_query(conn, media_query, (complaint_id,))
+                    complaint['rail_sathi_complain_media_files'] = media_files if media_files else []
+                except Exception as media_error:
+                    logger.error(f"Error fetching media for complaint {complaint_id}: {str(media_error)}")
+                    complaint['rail_sathi_complain_media_files'] = []
+            else:
+                complaint['rail_sathi_complain_media_files'] = []
+            
+            # Add missing customer_care field that's required by RailSathiComplainResponse
+            complaint['customer_care'] = None 
+            train_number = complaint.get('train_number')
+            if train_number:
+                get_depot_query = f"""
+                    SELECT "Depot" FROM trains_traindetails 
+                    WHERE train_no = '{train_number}' LIMIT 1
+                """
+                
+                get_train_name_query = f"""
+                    SELECT train_name FROM trains_traindetails 
+                    WHERE train_no = '{train_number}' LIMIT 1
+                """
+                conn = get_db_connection()
+                try:
+                    depot_result = execute_query(conn, get_depot_query)
+                    train_depot_name = depot_result[0]['Depot'] if depot_result else ''
+                    train_name_result = execute_query(conn, get_train_name_query)
+                    train_name = train_name_result[0]['train_name'] if train_name_result else ''
+                except Exception as e:
+                    logger.error(f"[Depot Lookup] Error: {str(e)}")
+                finally:
+                    conn.close()# or set appropriate default value
+            complaint['train_depot'] = train_depot_name
+            complaint['train_name'] = train_name
         
         return complaints
+    except Exception as e:
+        logger.error(f"Database error in get_complaints_by_date: {str(e)}")
+        raise e
     finally:
         conn.close()
 
@@ -483,7 +530,7 @@ def update_complaint(complain_id: int, update_data: dict):
     conn = get_db_connection()
     try:
         # Validate and process train data
-        update_data = validate_and_process_train_data(update_data)
+        # update_data = validate_and_process_train_data(update_data)
         
         # Parse complain_date if it's a string
         if 'complain_date' in update_data and isinstance(update_data['complain_date'], str):
