@@ -1,9 +1,9 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends, Request, APIRouter
+from fastapi.responses import JSONResponse 
 from typing import List, Optional
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime, date, time
+from datetime import datetime, timedelta, date, time
 import asyncio
 import threading
 import logging
@@ -13,13 +13,17 @@ from services import (
     upload_file_thread
 )
 
-from utils.complaint_enrichment import enrich_complaint_response_and_trigger_email
-
-
 from database import get_db_connection, execute_query
 import os
 from dotenv import load_dotenv
 from utils.email_utils import send_plain_mail
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import JWTError, jwt
+import functools
+
+
+
+
 
 app = FastAPI(
     title="Rail Sathi Complaint API",
@@ -30,13 +34,79 @@ app = FastAPI(
     redoc_url="/rs_microservice/redoc"            # Add the prefix here (optional)
 )
 
+load_dotenv()
+
+#JWT configuration
+SECRET_KEY = os.getenv("JWT_SECRET_KEY","fallback_dummy_key")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES",30))
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/rs_microservice/token")
+
+#dummy use for JWT authentication
+fake_user= {"username": "testuser", "password": "1234"}
+
+#JWT token generator
+def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=30)):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + expires_delta
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+#Login Endpoint to get JWT token
+@app.post("/rs_microservice/token")
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Login endpoint to get JWT token"""
+    if form_data.username != fake_user["username"] or form_data.password != fake_user["password"]:
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect username or password"
+        )
+    access_token = create_access_token(
+        data={"sub": form_data.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+#User authentication Decorator
+def user_authentication(func):
+    """Check JWT token in Authorization header"""
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        request: Request = kwargs.get("request") or args[0]
+        auth_header = request.headers.get("Authorization")
+
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(
+                status_code=401,
+                detail="Not authenticated"
+            )
+        # Extract token from header
+        token = auth_header.split(" ")[1]
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            username: str = payload.get("sub")
+            if username is None:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid token"
+                )
+            kwargs["current_user"] = {"username": username}  # Inject logged in user
+
+        except JWTError:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid or expired token"
+            )
+        return await func(*args, **kwargs)
+
+    return wrapper
+
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 from database import get_db_connection
 from psycopg2.extras import RealDictCursor
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -52,6 +122,7 @@ async def root():
 
 
 class RailSathiComplainMediaResponse(BaseModel):
+    
     id: int
     media_type: Optional[str]
     media_url: Optional[str]
@@ -438,16 +509,20 @@ async def update_complaint_endpoint(
     try:
         print(f"Updating complaint {complain_id} for user: {name}")
         print(f"Number of files received: {len(rail_sathi_complain_media_files)}")
-
+        
+        # Check if complaint exists and validate permissions
         existing_complaint = get_complaint_by_id(complain_id)
         if not existing_complaint:
             raise HTTPException(status_code=404, detail="Complaint not found")
-
-        # Prepare update data
-        update_data = {
-            "submission_status": "submitted",  # ✅ Always set on update
-            "updated_by": name
-        }
+        
+        # # Check permissions
+        # if (existing_complaint["created_by"] != name or 
+        #     existing_complaint["complain_status"] == "completed" or 
+        #     existing_complaint["mobile_number"] != mobile_number):
+        #     raise HTTPException(status_code=403, detail="Only user who created the complaint can update it.")
+        
+        # Prepare update data (only include non-None values)
+        update_data = {}
         if pnr_number is not None: update_data["pnr_number"] = pnr_number
         if is_pnr_validated is not None: update_data["is_pnr_validated"] = is_pnr_validated
         if name is not None: update_data["name"] = name
@@ -461,24 +536,32 @@ async def update_complaint_endpoint(
         if train_name is not None: update_data["train_name"] = train_name
         if coach is not None: update_data["coach"] = coach
         if berth_no is not None: update_data["berth_no"] = berth_no
-
-        # Update DB
-        update_complaint(complain_id, update_data)
+        update_data["updated_by"] = name
+        
+        # Update complaint
+        updated_complaint = update_complaint(complain_id, update_data)
         print(f"Complaint {complain_id} updated successfully")
 
-        # Upload media files
-        if rail_sathi_complain_media_files:
+        # Handle file uploads if any files are provided (similar to create endpoint)
+        if rail_sathi_complain_media_files and len(rail_sathi_complain_media_files) > 0:
+            print(f"Processing {len(rail_sathi_complain_media_files)} files")
+            
+            # Read all file contents first (before threading)
             file_data_list = []
             for file_obj in rail_sathi_complain_media_files:
-                if file_obj.filename:
-                    content = await file_obj.read()
+                if file_obj.filename:  # Check if file is actually uploaded
+                    file_content = await file_obj.read()
                     file_data_list.append({
-                        "content": content,
-                        "filename": file_obj.filename,
-                        "content_type": file_obj.content_type
+                        'content': file_content,
+                        'filename': file_obj.filename,
+                        'content_type': file_obj.content_type
                     })
+                    print(f"Read file: {file_obj.filename}, size: {len(file_content)}")
+            
+            # Process files in threads
             threads = []
-            for file in file_data_list:
+            for file_data in file_data_list:
+                # Create a mock file object for threading
                 class MockFile:
                     def __init__(self, content, filename, content_type):
                         self.content = content
@@ -486,40 +569,162 @@ async def update_complaint_endpoint(
                         self.content_type = content_type
                     def read(self):
                         return self.content
-                mock_file = MockFile(file["content"], file["filename"], file["content_type"])
+                
+                mock_file = MockFile(file_data['content'], file_data['filename'], file_data['content_type'])
                 t = threading.Thread(
-                    target=upload_file_thread,
+                    target=upload_file_thread, 
                     args=(mock_file, complain_id, name or ''),
-                    name=f"FileUpload-{complain_id}-{file['filename']}"
+                    name=f"FileUpload-{complain_id}-{file_data['filename']}"
                 )
                 t.start()
                 threads.append(t)
+                print(f"Started thread for file: {file_data['filename']}")
+            
+            # Wait for all threads to complete
             for t in threads:
                 t.join()
-
-        await asyncio.sleep(1)  # Ensure file threads complete
-
-        # ✅ Final enriched response just like POST
-        final_complaint = await enrich_complaint_response_and_trigger_email(
-            complain_id=complain_id,
-            pnr_number=pnr_number or existing_complaint.get("pnr_number"),
-            train_number=train_number or existing_complaint.get("train_number"),
-            coach=coach or existing_complaint.get("coach"),
-            berth_no=berth_no or existing_complaint.get("berth_no"),
-            date_of_journey=complain_date or existing_complaint.get("complain_date")
-        )
-
+                print(f"Thread completed: {t.name}")
+        
+        # Add a small delay to ensure database operations complete
+        await asyncio.sleep(1)
+        
+        # Get final updated complaint with media files
+        final_complaint = get_complaint_by_id(complain_id)
+        print(f"Final complaint data retrieved with {len(final_complaint.get('rail_sathi_complain_media_files', []))} media files")
+        
         return {
             "message": "Complaint updated successfully",
             "data": final_complaint
         }
-
+    
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error updating complaint {complain_id}: {str(e)}")
         import traceback
-        logger.error(traceback.format_exc())
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.patch("/rs_microservice/complaint/update/{complain_id}", response_model=RailSathiComplainResponse)
+@user_authentication
+async def update_complaint_endpoint(
+    complain_id: int,
+
+    request: Request,
+    current_user: dict = None,
+    pnr_number: Optional[str] = Form(None),
+    is_pnr_validated: Optional[str] = Form(None),
+    name: Optional[str] = Form(None),
+    mobile_number: Optional[str] = Form(None),
+    complain_type: Optional[str] = Form(None),
+    complain_description: Optional[str] = Form(None),
+    complain_date: Optional[str] = Form(None),
+    complain_status: Optional[str] = Form(None),
+    train_id: Optional[int] = Form(None),
+    train_number: Optional[str] = Form(None),
+    train_name: Optional[str] = Form(None),
+    coach: Optional[str] = Form(None),
+    berth_no: Optional[int] = Form(None),
+    rail_sathi_complain_media_files: List[UploadFile] = File(default=[])
+):
+    """Update complaint (partial update)"""
+    try:
+        print(f"Updating complaint {complain_id} for user: {name}")
+        print(f"Number of files received: {len(rail_sathi_complain_media_files)}")
+        
+        # Check if complaint exists and validate permissions
+        existing_complaint = get_complaint_by_id(complain_id)
+        if not existing_complaint:
+            raise HTTPException(status_code=404, detail="Complaint not found")
+        
+        # # Check permissions
+        # if (existing_complaint["created_by"] != name or 
+        #     existing_complaint["complain_status"] == "completed" or 
+        #     existing_complaint["mobile_number"] != mobile_number):
+        #     raise HTTPException(status_code=403, detail="Only user who created the complaint can update it.")
+        
+        # Prepare update data (only include non-None values)
+        update_data = {}
+        if pnr_number is not None: update_data["pnr_number"] = pnr_number
+        if is_pnr_validated is not None: update_data["is_pnr_validated"] = is_pnr_validated
+        if name is not None: update_data["name"] = name
+        if mobile_number is not None: update_data["mobile_number"] = mobile_number
+        if complain_type is not None: update_data["complain_type"] = complain_type
+        if complain_description is not None: update_data["complain_description"] = complain_description
+        if complain_date is not None: update_data["complain_date"] = complain_date
+        if complain_status is not None: update_data["complain_status"] = complain_status
+        if train_id is not None: update_data["train_id"] = train_id
+        if train_number is not None: update_data["train_number"] = train_number
+        if train_name is not None: update_data["train_name"] = train_name
+        if coach is not None: update_data["coach"] = coach
+        if berth_no is not None: update_data["berth_no"] = berth_no
+        update_data["updated_by"] = name
+        
+        # Update complaint
+        updated_complaint = update_complaint(complain_id, update_data)
+        print(f"Complaint {complain_id} updated successfully")
+
+        # Handle file uploads if any files are provided (similar to create endpoint)
+        if rail_sathi_complain_media_files and len(rail_sathi_complain_media_files) > 0:
+            print(f"Processing {len(rail_sathi_complain_media_files)} files")
+            
+            # Read all file contents first (before threading)
+            file_data_list = []
+            for file_obj in rail_sathi_complain_media_files:
+                if file_obj.filename:  # Check if file is actually uploaded
+                    file_content = await file_obj.read()
+                    file_data_list.append({
+                        'content': file_content,
+                        'filename': file_obj.filename,
+                        'content_type': file_obj.content_type
+                    })
+                    print(f"Read file: {file_obj.filename}, size: {len(file_content)}")
+            
+            # Process files in threads
+            threads = []
+            for file_data in file_data_list:
+                # Create a mock file object for threading
+                class MockFile:
+                    def __init__(self, content, filename, content_type):
+                        self.content = content
+                        self.filename = filename
+                        self.content_type = content_type
+                    def read(self):
+                        return self.content
+                
+                mock_file = MockFile(file_data['content'], file_data['filename'], file_data['content_type'])
+                t = threading.Thread(
+                    target=upload_file_thread, 
+                    args=(mock_file, complain_id, name or ''),
+                    name=f"FileUpload-{complain_id}-{file_data['filename']}"
+                )
+                t.start()
+                threads.append(t)
+                print(f"Started thread for file: {file_data['filename']}")
+            
+            # Wait for all threads to complete
+            for t in threads:
+                t.join()
+                print(f"Thread completed: {t.name}")
+        
+        # Add a small delay to ensure database operations complete
+        await asyncio.sleep(1)
+        
+        # Get final updated complaint with media files
+        final_complaint = get_complaint_by_id(complain_id)
+        print(f"Final complaint data retrieved with {len(final_complaint.get('rail_sathi_complain_media_files', []))} media files")
+        
+        return {
+            "message": "Complaint updated successfully",
+            "data": final_complaint
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating complaint {complain_id}: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -788,83 +993,6 @@ def get_train_details(train_no: str):
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy"}
-
-async def enrich_complaint_response_and_trigger_email(
-    complain_id: int,
-    pnr_number: Optional[str],
-    train_number: Optional[str],
-    coach: Optional[str],
-    berth_no: Optional[int],
-    date_of_journey: Optional[str],
-) -> dict:
-    train_depot_name = ''
-    war_room_phone = ''
-    
-    # Step 1: Get depot info
-    if train_number:
-        get_depot_query = f"""
-            SELECT "Depot" FROM trains_traindetails 
-            WHERE train_no = '{train_number}' LIMIT 1
-        """
-        conn = get_db_connection()
-        try:
-            depot_result = execute_query(conn, get_depot_query)
-            train_depot_name = depot_result[0]['Depot'] if depot_result else ''
-        except Exception as e:
-            logger.error(f"Error fetching depot: {str(e)}")
-        finally:
-            conn.close()
-
-    # Step 2: Get WRUR
-    if train_depot_name:
-        war_room_user_query = f"""
-            SELECT u.phone
-            FROM user_onboarding_user u
-            JOIN user_onboarding_roles ut ON u.user_type_id = ut.id
-            WHERE ut.name = 'war room user railsathi'
-            AND (
-                u.depo = '{train_depot_name}'
-                OR u.depo LIKE '{train_depot_name},%'
-                OR u.depo LIKE '%,{train_depot_name},%'
-                OR u.depo LIKE '%,{train_depot_name}'
-            )
-            AND u.phone IS NOT NULL
-            AND u.phone != ''
-            LIMIT 1
-        """
-        conn = get_db_connection()
-        try:
-            result = execute_query(conn, war_room_user_query)
-            war_room_phone = result[0]['phone'] if result else ''
-        except Exception as e:
-            logger.error(f"Error fetching WRUR: {str(e)}")
-        finally:
-            conn.close()
-
-    # Step 3: Send fallback email if WRUR not found
-    if not war_room_phone:
-        war_room_phone = "9123183988"
-        env = os.getenv("ENV")
-        subject = f"{env or 'LOCAL'} | {train_number} ({train_depot_name}) No War Room User RailSathi(WRUR) Found !"
-        message = f"""
-No War Room User RailSathi (WRUR) exists for PNR Number: {pnr_number} in Train Number: {train_number} 
-Coach/Berth: {coach}/{berth_no} on {date_of_journey}
-Train Depot: {train_depot_name}
-
-Kindly verify the WRUR assignment to the given train depot.
-"""
-        send_plain_mail(
-            subject=subject,
-            message=message,
-            from_=os.getenv("MAIL_FROM"),
-            to=["contact@suvidhaen.com"]
-        )
-
-    # Step 4: Fetch final complaint data with media
-    final_data = get_complaint_by_id(complain_id)
-    final_data["customer_care"] = war_room_phone
-    final_data["train_depot"] = train_depot_name
-    return final_data
 
 if __name__ == "__main__":
     import uvicorn
