@@ -8,7 +8,7 @@ from datetime import datetime, date
 from typing import List, Dict, Optional, Any
 from google.cloud import storage
 from PIL import Image
-from moviepy import *
+from moviepy.editor import VideoFileClip
 from urllib.parse import unquote
 from database import get_db_connection, execute_query, execute_query_one
 from utils.email_utils import send_plain_mail, send_passenger_complain_email
@@ -525,81 +525,11 @@ def update_complaint(complain_id: int, update_data: dict):
         cursor = conn.cursor()
         cursor.execute(query, tuple(values))
         conn.commit()
-        
-        # ✅ Get updated complaint data for email
-        updated_complaint = get_complaint_by_id(complain_id)
-        
-        # ✅ Send passenger complaint email in separate thread (same as create_complaint)
-        def _send_email(complaint_data, complaint_id):
-            try:
-                logger.info(f"Email thread started for updated complaint {complaint_id}")
-                
-                # Handle date_of_journey - use current date if not provided or invalid
-                date_of_journey_str = complaint_data.get('date_of_journey') or complaint_data.get('complain_date')
-                if date_of_journey_str:
-                    try:
-                        if isinstance(date_of_journey_str, str):
-                            date_of_journey = datetime.strptime(date_of_journey_str, "%Y-%m-%d")
-                        else:
-                            date_of_journey = datetime.combine(date_of_journey_str, datetime.min.time())
-                    except (ValueError, TypeError):
-                        date_of_journey = datetime.now()
-                else:
-                    date_of_journey = datetime.now()
-                
-                train_depo = ''
-                if complaint_data.get('train_id'):
-                    train_query = "SELECT * FROM trains_traindetails WHERE id = %s"
-                    train_conn = get_db_connection()
-                    train = execute_query_one(train_conn, train_query, (complaint_data['train_id'],))
-                    train_conn.close()
-                    if train:
-                        train_depo = train.get('Depot', '')
-                elif complaint_data.get('train_number'):
-                    train_query = "SELECT * FROM trains_traindetails WHERE train_no = %s"
-                    train_conn = get_db_connection()
-                    train = execute_query_one(train_conn, train_query, (complaint_data['train_number'],))
-                    train_conn.close()
-                    if train:
-                        train_depo = train.get('Depot', '')
-                
-                details = {
-                    'train_no': complaint_data.get('train_number', ''),
-                    'train_name': complaint_data.get('train_name', ''),
-                    'user_phone_number': complaint_data.get('mobile_number', ''),
-                    'passenger_name': complaint_data.get('name', ''),
-                    'pnr': complaint_data.get('pnr_number', ''),
-                    'berth': complaint_data.get('berth_no', ''),
-                    'coach': complaint_data.get('coach', ''),
-                    'complain_id': complaint_id,
-                    'description': complaint_data.get('complain_description', ''),
-                    'train_depo': train_depo,
-                    'date_of_journey': date_of_journey.strftime("%d %b %Y"),
-                }
-                
-                logger.info(f"Sending passenger complaint email for updated complaint {complaint_id} to war room users")
-                send_passenger_complain_email(details)
-                logger.info(f"Passenger complaint email sent successfully for updated complaint {complaint_id}")
-            except Exception as e:
-                logger.error(f"Email thread failure for updated complaint {complaint_id}: {str(e)}")
-        
-        try:
-            email_thread = threading.Thread(
-                target=_send_email,
-                args=(updated_complaint, complain_id),
-                name=f"EmailThread-Update-{complain_id}"
-            )
-            email_thread.daemon = True
-            logger.info(f"Starting passenger complaint email thread for updated complaint {complain_id}")
-            email_thread.start()
-            logger.info(f"Passenger complaint email thread started with name {email_thread.name}")
-        except Exception as e:
-            logger.error(f"Failed to create passenger complaint email thread: {str(e)}")
-        
-        return updated_complaint
+            
+        return get_complaint_by_id(complain_id)
     finally:
         conn.close()
-
+    
 def delete_complaint(complain_id: int):
     """Delete complaint and its media files"""
     conn = get_db_connection()

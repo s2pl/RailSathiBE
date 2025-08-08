@@ -21,7 +21,7 @@ DB_CONFIG = {
     'port': int(os.getenv('POSTGRES_PORT', 5432)),
     'user': os.getenv('POSTGRES_USER', 'postgres'),
     'password': os.getenv('POSTGRES_PASSWORD', 'password'),
-    'database': os.getenv('POSTGRES_DB', 'railsathi')
+    'database': os.getenv('POSTGRES_DB', 'rail_sathi_db')
 }
 
 def get_db_connection():
