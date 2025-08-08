@@ -1,5 +1,5 @@
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from fastapi import Request
+from fastapi import Request , Security
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 import functools
@@ -25,6 +25,9 @@ from utils.email_utils import send_plain_mail
 
 load_dotenv()
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/rs_microservice/token")
+
+
 app = FastAPI(
     title="Rail Sathi Complaint API",
     description="API for handling rail complaints",
@@ -39,7 +42,6 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY","fallback_dummy_key")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES",30))
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/rs_microservice/token")
 
 #dummy use for JWT authentication
 fake_user= {"username": "testuser", "password": "1234"}
@@ -47,7 +49,7 @@ fake_user= {"username": "testuser", "password": "1234"}
 #JWT token generator
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=30)):
     to_encode = data.copy()
-    expire = datetime.utcnow() + expires_delta
+    expire = datetime.utcnow() + expires_delta 
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -183,7 +185,8 @@ class RailSathiComplainFlatResponse(BaseModel):
     rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse]
 
 @app.get("/rs_microservice/complaint/get/{complain_id}", response_model=RailSathiComplainResponse)
-async def get_complaint(complain_id: int):
+@user_authentication
+async def get_complaint(complain_id: int, request: Request, token:str = Security(oauth2_scheme), current_user: dict = None):
     """Get complaint by ID"""
     try:
         complaint = get_complaint_by_id(complain_id)
@@ -200,7 +203,8 @@ async def get_complaint(complain_id: int):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/rs_microservice/complaint/get/date/{date_str}", response_model=List[RailSathiComplainResponse])
-async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional[str] = None):
+@user_authentication
+async def get_complaints_by_date_endpoint(request: Request,date_str: str, token:str = Security(oauth2_scheme),mobile_number: Optional[str] = None, current_user: dict = None):
     """Get complaints by date and mobile number"""
     try:
         # Validate date format
@@ -235,7 +239,7 @@ async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional
 @user_authentication
 async def create_complaint_endpoint_threaded(
     request: Request,
-    current_user: dict = None,
+    token:str = Security(oauth2_scheme),
 
     pnr_number: Optional[str] = Form(None),
     is_pnr_validated: Optional[str] = Form("not-attempted"),
@@ -458,8 +462,8 @@ async def create_complaint_endpoint_threaded(
 
 
 @app.patch("/rs_microservice/complaint/update/{complain_id}", response_model=RailSathiComplainResponse)
-async def update_complaint_endpoint(
-    complain_id: int,
+@user_authentication
+async def update_complaint_endpoint(complain_id: int, request: Request, token:str = Security(oauth2_scheme), current_user: dict = None,
     pnr_number: Optional[str] = Form(None),
     is_pnr_validated: Optional[str] = Form(None),
     name: Optional[str] = Form(None),
@@ -577,8 +581,13 @@ async def update_complaint_endpoint(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.put("/rs_microservice/complaint/update/{complain_id}", response_model=RailSathiComplainResponse)
+@user_authentication
 async def replace_complaint_endpoint(
     complain_id: int,
+    request: Request,
+    token:str = Security(oauth2_scheme),
+    current_user: dict = None,
+
     pnr_number: Optional[str] = Form(None),
     is_pnr_validated: str = Form("not-attempted"),
     name: Optional[str] = Form(None),
@@ -698,8 +707,12 @@ async def replace_complaint_endpoint(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.delete("/rs_microservice/complaint/delete/{complain_id}")
+@user_authentication
 async def delete_complaint_endpoint(
     complain_id: int,
+    request: Request,
+    token:str = Security(oauth2_scheme),
+    current_user: dict = None,
     name: str = Form(...),
     mobile_number: str = Form(...)
 ):
@@ -733,8 +746,12 @@ async def delete_complaint_endpoint(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.delete("/rs_microservice/media/delete/{complain_id}")
+@user_authentication
 async def delete_complaint_media_endpoint(
     complain_id: int,
+    request: Request,
+    token:str = Security(oauth2_scheme),
+    current_user: dict = None,
     name: str = Form(...),
     mobile_number: str = Form(...),
     deleted_media_ids: List[int] = Form(...)
