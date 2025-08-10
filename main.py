@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends, Request
 from fastapi.responses import JSONResponse
 from typing import List, Optional
 from pydantic import BaseModel
@@ -14,12 +14,14 @@ from services import (
 )
 
 from utils.complaint_enrichment import enrich_complaint_response_and_trigger_email
-
+from utils.auth import create_access_token, user_authentication, fake_user, get_current_user
 
 from database import get_db_connection, execute_query
 import os
 from dotenv import load_dotenv
 from utils.email_utils import send_plain_mail
+
+load_dotenv()
 
 app = FastAPI(
     title="Rail Sathi Complaint API",
@@ -29,6 +31,18 @@ app = FastAPI(
     docs_url="/rs_microservice/docs",             # Add the prefix here
     redoc_url="/rs_microservice/redoc"            # Add the prefix here (optional)
 )
+
+@app.post("/rs_microservice/token")
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Login endpoint to get JWT token"""
+    if form_data.username != fake_user["username"] or form_data.password != fake_user["password"]:
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect username or password"
+        )
+    access_token = create_access_token(
+        data={"sub": form_data.username})
+    return {"access_token": access_token, "token_type": "bearer"}
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -523,6 +537,139 @@ async def update_complaint_endpoint(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
+#Replicated patch api with Auth
+@app.patch("/rs_microservice/complaint/update/auth/{complain_id}", response_model=RailSathiComplainResponse)
+@user_authentication
+async def update_complaint_endpoint(
+    complain_id: int,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    pnr_number: Optional[str] = Form(None),
+    is_pnr_validated: Optional[str] = Form(None),
+    name: Optional[str] = Form(None),
+    mobile_number: Optional[str] = Form(None),
+    complain_type: Optional[str] = Form(None),
+    complain_description: Optional[str] = Form(None),
+    complain_date: Optional[str] = Form(None),
+    complain_status: Optional[str] = Form(None),
+    train_id: Optional[int] = Form(None),
+    train_number: Optional[str] = Form(None),
+    train_name: Optional[str] = Form(None),
+    coach: Optional[str] = Form(None),
+    berth_no: Optional[int] = Form(None),
+    rail_sathi_complain_media_files: List[UploadFile] = File(default=[])
+):
+    """Update complaint (partial update)"""
+    try:
+        logger.info(f"STEP 1: Starting update for complaint {complain_id} (User: {name})")
+        logger.info(f"STEP 1.1: Files received = {len(rail_sathi_complain_media_files)}")
+
+        # STEP 2: Fetch existing complaint
+        existing_complaint = get_complaint_by_id(complain_id)
+        if not existing_complaint:
+            logger.error("STEP 2: Complaint not found")
+            raise HTTPException(status_code=404, detail="Complaint not found")
+        logger.info("STEP 2: Complaint found in DB")
+
+        # STEP 3: Prepare update data
+        update_data = {
+            "submission_status": "submitted",
+            "updated_by": current_user.get("username")
+        }
+        if pnr_number is not None: update_data["pnr_number"] = pnr_number
+        if is_pnr_validated is not None: update_data["is_pnr_validated"] = is_pnr_validated
+        if name is not None: update_data["name"] = name
+        if mobile_number is not None: update_data["mobile_number"] = mobile_number
+        if complain_type is not None: update_data["complain_type"] = complain_type
+        if complain_description is not None: update_data["complain_description"] = complain_description
+        if complain_date is not None: update_data["complain_date"] = complain_date
+        if complain_status is not None: update_data["complain_status"] = complain_status
+        if train_id is not None: update_data["train_id"] = train_id
+        if train_number is not None: update_data["train_number"] = train_number
+        if train_name is not None: update_data["train_name"] = train_name
+        if coach is not None: update_data["coach"] = coach
+        if berth_no is not None: update_data["berth_no"] = berth_no
+
+        logger.info(f"STEP 3: Prepared update data = {update_data}")
+
+        # STEP 4: Update DB
+        update_complaint(complain_id, update_data)
+        logger.info("STEP 4: Complaint updated in DB successfully")
+
+        # STEP 5: Handle file uploads
+        if rail_sathi_complain_media_files:
+            logger.info("STEP 5: Processing file uploads")
+            file_data_list = []
+            for file_obj in rail_sathi_complain_media_files:
+                if file_obj.filename:
+                    content = await file_obj.read()
+                    file_data_list.append({
+                        "content": content,
+                        "filename": file_obj.filename,
+                        "content_type": file_obj.content_type
+                    })
+            threads = []
+            for file in file_data_list:
+                class MockFile:
+                    def __init__(self, content, filename, content_type):
+                        self.content = content
+                        self.filename = filename
+                        self.content_type = content_type
+                    def read(self):
+                        return self.content
+                mock_file = MockFile(file["content"], file["filename"], file["content_type"])
+                try:
+                    t = threading.Thread(
+                        target=upload_file_thread,
+                        args=(mock_file, complain_id, name or ''),
+                        name=f"FileUpload-{complain_id}-{file['filename']}"
+                    )
+                    t.start()
+                    threads.append(t)
+                except Exception as e:
+                    logger.error(f"STEP 5 ERROR: Could not start thread for file {file['filename']} → {e}")
+
+            for t in threads:
+                try:
+                    t.join()
+                except Exception as e:
+                    logger.error(f"STEP 5 ERROR: Thread join failed → {e}")
+
+        await asyncio.sleep(1)  # ensure threads complete
+        logger.info("STEP 5: File uploads completed")
+
+        # STEP 6: Enrich complaint and trigger email
+        try:
+            logger.info("STEP 6: Enriching complaint and triggering email")
+            final_complaint = await enrich_complaint_response_and_trigger_email(
+                complain_id=complain_id,
+                pnr_number=pnr_number or existing_complaint.get("pnr_number"),
+                train_number=train_number or existing_complaint.get("train_number"),
+                coach=coach or existing_complaint.get("coach"),
+                berth_no=berth_no or existing_complaint.get("berth_no"),
+                date_of_journey=complain_date or existing_complaint.get("complain_date")
+            )
+        except Exception as e:
+            logger.error(f"STEP 6 ERROR: Enrichment failed → {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            raise HTTPException(status_code=500, detail=f"Error in enrichment: {str(e)}")
+
+        logger.info("STEP 7: Returning success response")
+        return {
+            "message": "Complaint updated successfully",
+            "data": final_complaint
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"GENERAL ERROR: Complaint update failed for {complain_id} → {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
 @app.put("/rs_microservice/complaint/update/{complain_id}", response_model=RailSathiComplainResponse)
 async def replace_complaint_endpoint(
     complain_id: int,
@@ -644,6 +791,133 @@ async def replace_complaint_endpoint(
         logger.error(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+#Replicated put api with Auth
+@app.put("/rs_microservice/complaint/update/auth{complain_id}", response_model=RailSathiComplainResponse)
+@user_authentication
+async def replace_complaint_endpoint(
+    complain_id: int,
+    
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    pnr_number: Optional[str] = Form(None),
+    is_pnr_validated: str = Form("not-attempted"),
+    name: Optional[str] = Form(None),
+    mobile_number: Optional[str] = Form(None),
+    complain_type: Optional[str] = Form(None),
+    complain_description: Optional[str] = Form(None),
+    complain_date: Optional[str] = Form(None),
+    complain_status: str = Form("pending"),
+    train_id: Optional[int] = Form(None),
+    train_number: Optional[str] = Form(None),
+    train_name: Optional[str] = Form(None),
+    coach: Optional[str] = Form(None),
+    berth_no: Optional[int] = Form(None),
+    rail_sathi_complain_media_files: List[UploadFile] = File(default=[])
+):
+    """Replace complaint (full update)"""
+    try:
+        print(f"Replacing complaint {complain_id} for user: {name}")
+        print(f"Number of files received: {len(rail_sathi_complain_media_files)}")
+        
+        # Check if complaint exists and validate permissions
+        existing_complaint = get_complaint_by_id(complain_id)
+        if not existing_complaint:
+            raise HTTPException(status_code=404, detail="Complaint not found")
+        
+        # Check permissions
+        if (existing_complaint["created_by"] != name or 
+            existing_complaint["complain_status"] == "completed" or 
+            existing_complaint["mobile_number"] != mobile_number):
+            raise HTTPException(status_code=403, detail="Only user who created the complaint can update it.")
+        
+        # Prepare full update data
+        update_data = {
+            "pnr_number": pnr_number,
+            "is_pnr_validated": is_pnr_validated,
+            "name": name,
+            "mobile_number": mobile_number,
+            "complain_type": complain_type,
+            "complain_description": complain_description,
+            "complain_date": complain_date,
+            "complain_status": complain_status,
+            "train_id": train_id,
+            "train_number": train_number,
+            "train_name": train_name,
+            "coach": coach,
+            "berth_no": berth_no,
+            "updated_by": name
+        }
+        
+        # Update complaint
+        updated_complaint = update_complaint(complain_id, update_data)
+        print(f"Complaint {complain_id} replaced successfully")
+        
+        # Handle file uploads if any files are provided
+        if rail_sathi_complain_media_files and len(rail_sathi_complain_media_files) > 0:
+            print(f"Processing {len(rail_sathi_complain_media_files)} files")
+            
+            # Read all file contents first (before threading)
+            file_data_list = []
+            for file_obj in rail_sathi_complain_media_files:
+                if file_obj.filename:  # Check if file is actually uploaded
+                    file_content = await file_obj.read()
+                    file_data_list.append({
+                        'content': file_content,
+                        'filename': file_obj.filename,
+                        'content_type': file_obj.content_type
+                    })
+                    print(f"Read file: {file_obj.filename}, size: {len(file_content)}")
+            
+            # Process files in threads
+            threads = []
+            for file_data in file_data_list:
+                # Create a mock file object for threading
+                class MockFile:
+                    def __init__(self, content, filename, content_type):
+                        self.content = content
+                        self.filename = filename
+                        self.content_type = content_type
+                    
+                    def read(self):
+                        return self.content
+                
+                mock_file = MockFile(file_data['content'], file_data['filename'], file_data['content_type'])
+                t = threading.Thread(
+                    target=upload_file_thread, 
+                    args=(mock_file, complain_id, name or ''),
+                    name=f"FileUpload-{complain_id}-{file_data['filename']}"
+                )
+                t.start()
+                threads.append(t)
+                print(f"Started thread for file: {file_data['filename']}")
+            
+            # Wait for all threads to complete
+            for t in threads:
+                t.join()
+                print(f"Thread completed: {t.name}")
+        
+        # Add a small delay to ensure database operations complete
+        await asyncio.sleep(1)
+        
+        # Get final updated complaint with media files
+        final_complaint = get_complaint_by_id(complain_id)
+        print(f"Final complaint data retrieved with {len(final_complaint.get('rail_sathi_complain_media_files', []))} media files")
+        
+        # Return properly formatted response (this was the missing part!)
+        return {
+            "message": "Complaint replaced successfully",
+            "data": final_complaint
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error replacing complaint {complain_id}: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
 @app.delete("/rs_microservice/complaint/delete/{complain_id}")
 async def delete_complaint_endpoint(
     complain_id: int,
@@ -678,6 +952,46 @@ async def delete_complaint_endpoint(
         import traceback
         logger.error(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+#Replicated Delete api with Auth
+@app.delete("/rs_microservice/complaint/delete/auth{complain_id}")
+@user_authentication
+async def delete_complaint_endpoint(
+    complain_id: int,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    name: str = Form(...),
+    mobile_number: str = Form(...)
+):
+    """Delete complaint"""
+    try:
+        print(f"Deleting complaint {complain_id} for user: {name}")
+        
+        # Check if complaint exists and validate permissions
+        existing_complaint = get_complaint_by_id(complain_id)
+        if not existing_complaint:
+            raise HTTPException(status_code=404, detail="Complaint not found")
+        
+        # Check permissions
+        if (existing_complaint["created_by"] != name or 
+            existing_complaint["complain_status"] == "completed" or 
+            existing_complaint["mobile_number"] != mobile_number):
+            raise HTTPException(status_code=403, detail="Only user who created the complaint can delete it.")
+        
+        # Delete complaint
+        delete_complaint(complain_id)
+        print(f"Complaint {complain_id} deleted successfully")
+        
+        return {"message": "Complaint deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting complaint {complain_id}: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 
 @app.delete("/rs_microservice/media/delete/{complain_id}")
 async def delete_complaint_media_endpoint(
@@ -722,7 +1036,7 @@ async def delete_complaint_media_endpoint(
         import traceback
         logger.error(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-    
+
 
 def make_json_serializable(data):
     if isinstance(data, dict):
