@@ -370,20 +370,15 @@ def create_complaint(complaint_data):
                 logger.info(f"Email thread started for complaint {complaint_id}")
                 
                 train_depo = ''
-                if complaint_data.get('train_id'):
-                    train_query = "SELECT * FROM trains_traindetails WHERE id = %s"
-                    train_conn = get_db_connection()
-                    train = execute_query_one(train_conn, train_query, (complaint_data['train_id'],))
-                    train_conn.close()
-                    if train:
-                        train_depo = train.get('Depot', '')
-                elif complaint_data.get('train_number'):
+                if complaint_data.get('train_number'):
                     train_query = "SELECT * FROM trains_traindetails WHERE train_no = %s"
                     train_conn = get_db_connection()
                     train = execute_query_one(train_conn, train_query, (complaint_data['train_number'],))
                     train_conn.close()
                     if train:
                         train_depo = train.get('Depot', '')
+                else:
+                    train_depo = 'Not known'
                 
                 details = {
                     'train_no': complaint_data.get('train_number', ''),
@@ -426,14 +421,15 @@ def get_complaint_by_id(complain_id: int):
     """Get complaint by ID with media files"""
     conn = get_db_connection()
     try:
-        # Get complaint
+        # Get complaint - using string comparison by casting train_no to text
         query = """
             SELECT c.*, t.train_no, t.train_name, t."Depot" as train_depot
             FROM rail_sathi_railsathicomplain c
-            LEFT JOIN trains_traindetails t ON c.train_id = t.id
+            LEFT JOIN trains_traindetails t ON c.train_number = t.train_no::text
             WHERE c.complain_id = %s
         """
         complaint = execute_query_one(conn, query, (complain_id,))
+        print(f"Complaint fetched by id before updating: {complaint}")
         
         if not complaint:
             return None
@@ -578,6 +574,7 @@ def update_complaint(complain_id: int, update_data: dict):
         
         # ✅ Send passenger complaint email in separate thread (same as create_complaint)
         def _send_email(complaint_data, complaint_id):
+
             try:
                 logger.info(f"Email thread started for updated complaint {complaint_id}")
                 
@@ -595,20 +592,21 @@ def update_complaint(complain_id: int, update_data: dict):
                     date_of_journey = datetime.now()
                 
                 train_depo = ''
-                if complaint_data.get('train_id'):
-                    train_query = "SELECT * FROM trains_traindetails WHERE id = %s"
-                    train_conn = get_db_connection()
-                    train = execute_query_one(train_conn, train_query, (complaint_data['train_id'],))
-                    train_conn.close()
-                    if train:
-                        train_depo = train.get('Depot', '')
-                elif complaint_data.get('train_number'):
+
+                if complaint_data.get('train_number'):
+                    print(f"Fetching train depot for train number: {complaint_data['train_number']}")
+
                     train_query = "SELECT * FROM trains_traindetails WHERE train_no = %s"
                     train_conn = get_db_connection()
                     train = execute_query_one(train_conn, train_query, (complaint_data['train_number'],))
                     train_conn.close()
                     if train:
                         train_depo = train.get('Depot', '')
+
+                else:
+                    train_depo = 'Not known'
+                    
+
                 
                 details = {
                     'train_no': complaint_data.get('train_number', ''),

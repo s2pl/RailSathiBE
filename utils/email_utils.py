@@ -74,26 +74,23 @@ def send_passenger_complain_email(complain_details: Dict):
     railway_admin_users = []
     assigned_users_list = []
     
-    train_depo = complain_details.get('train_depot', '')
+    #print(f"Complain Details for mail: {complain_details}")
+    train_depo = complain_details.get('train_depo', '')
+    #print(f"Train Depot: {train_depo}")
     train_no = str(complain_details.get('train_no', '')).strip()
+    #print(f"Train Number: {train_no}")
     complaint_date = complain_details.get('created_at', '') 
     journey_start_date = complain_details.get('date_of_journey', '')
+    
+    #print(f"Train Name: {complain_details.get('train_name', 'Not provided')}")
 
     ist = pytz.timezone('Asia/Kolkata')
     complaint_created_at = datetime.now(ist).strftime("%d %b %Y, %H:%M")
 
     
     try:
-        # Step 1: Get Depot for the train number
-        get_depot_query = f"""
-            SELECT "Depot" FROM trains_traindetails 
-            WHERE train_no = '{train_no}' LIMIT 1
-        """
-        conn = get_db_connection()
-        depot_result = execute_query(conn, get_depot_query)
-        conn.close()
 
-        train_depot_name = depot_result[0]['Depot'] if depot_result else ''
+        train_depot_name = train_depo
 
         # Step 2: Fetch war room users whose `depo` matches the train depot
         war_room_user_query = f"""
@@ -147,7 +144,7 @@ def send_passenger_complain_email(complain_details: Dict):
         conn.close()
         
         # Get train number and complaint date for filtering
-        train_no = str(complain_details.get('train_number', '')).strip()
+        train_no = str(complain_details.get('train_no', '')).strip()
         
         # Handle created_at whether it's a string or datetime object
         created_at_raw = complain_details.get('created_at', '')
@@ -293,6 +290,8 @@ def send_passenger_complain_email(complain_details: Dict):
         
         # Remove duplicates while preserving order
         unique_emails = list(dict.fromkeys(all_emails))
+        #unique_emails = ["harshnmishra01@gmail.com","harshnmishra.s2@gmail.com"]
+        
         
         if not unique_emails:
             logging.info(f"No users found for depot {train_depo} and train {train_no} in complaint {complain_details['complain_id']}")
