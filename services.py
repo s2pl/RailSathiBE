@@ -370,20 +370,15 @@ def create_complaint(complaint_data):
                 logger.info(f"Email thread started for complaint {complaint_id}")
                 
                 train_depo = ''
-                if complaint_data.get('train_id'):
-                    train_query = "SELECT * FROM trains_traindetails WHERE id = %s"
-                    train_conn = get_db_connection()
-                    train = execute_query_one(train_conn, train_query, (complaint_data['train_id'],))
-                    train_conn.close()
-                    if train:
-                        train_depo = train.get('Depot', '')
-                elif complaint_data.get('train_number'):
+                if complaint_data.get('train_number'):
                     train_query = "SELECT * FROM trains_traindetails WHERE train_no = %s"
                     train_conn = get_db_connection()
                     train = execute_query_one(train_conn, train_query, (complaint_data['train_number'],))
                     train_conn.close()
                     if train:
                         train_depo = train.get('Depot', '')
+                else:
+                    train_depo = 'Not known'
                 
                 details = {
                     'train_no': complaint_data.get('train_number', ''),
