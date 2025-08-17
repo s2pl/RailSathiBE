@@ -574,8 +574,7 @@ def update_complaint(complain_id: int, update_data: dict):
         
         # ✅ Send passenger complaint email in separate thread (same as create_complaint)
         def _send_email(complaint_data, complaint_id):
-            # print(f"Starting email thread for complaint {complaint_id}")
-            # print(f"Complaint data while initializing complaint: {complaint_data}")
+
             try:
                 logger.info(f"Email thread started for updated complaint {complaint_id}")
                 
@@ -593,19 +592,21 @@ def update_complaint(complain_id: int, update_data: dict):
                     date_of_journey = datetime.now()
                 
                 train_depo = ''
+
                 if complaint_data.get('train_number'):
                     print(f"Fetching train depot for train number: {complaint_data['train_number']}")
+
                     train_query = "SELECT * FROM trains_traindetails WHERE train_no = %s"
                     train_conn = get_db_connection()
                     train = execute_query_one(train_conn, train_query, (complaint_data['train_number'],))
                     train_conn.close()
                     if train:
                         train_depo = train.get('Depot', '')
+
                 else:
                     train_depo = 'Not known'
                     
-                    
-                print(f"Train Depot: {train_depo} in Update Complaint email thread")
+
                 
                 details = {
                     'train_no': complaint_data.get('train_number', ''),
