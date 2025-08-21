@@ -17,11 +17,11 @@ print("DB User:", os.getenv("POSTGRES_USER"))
 
 # Database configuration
 DB_CONFIG = {
-    'host': os.getenv('POSTGRES_HOST', 'localhost'),
-    'port': int(os.getenv('POSTGRES_PORT', 5432)),
-    'user': os.getenv('POSTGRES_USER', 'postgres'),
-    'password': os.getenv('POSTGRES_PASSWORD', 'password'),
-    'database': os.getenv('POSTGRES_DB', 'rail_sathi_db')
+    'host': os.getenv('POSTGRES_HOST'),
+    'port': int(os.getenv('POSTGRES_PORT')),
+    'user': os.getenv('POSTGRES_USER'),
+    'password': os.getenv('POSTGRES_PASSWORD'),
+    'database': os.getenv('POSTGRES_DB')
 }
 
 def get_db_connection():
@@ -32,7 +32,8 @@ def get_db_connection():
             port=DB_CONFIG['port'],
             user=DB_CONFIG['user'],
             password=DB_CONFIG['password'],
-            database=DB_CONFIG['database']
+            database=DB_CONFIG['database'],
+            cursor_factory=psycopg2.extras.RealDictCursor
         )
         connection.autocommit = False
         return connection
