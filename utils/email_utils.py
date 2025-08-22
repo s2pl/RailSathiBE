@@ -9,6 +9,7 @@ from database import get_db_connection, execute_query  # Fixed import
 from datetime import datetime
 import pytz
 import json
+from utils.push_notification import send_push_notification
 
 EMAIL_SENDER = conf.MAIL_FROM
 
@@ -66,6 +67,39 @@ def send_plain_mail(subject: str, message: str, from_: str, to: List[str], cc: L
         logging.exception(f"Error in send_plain_mail: {repr(e)}")
         return False
 
+# Function to send push/pop-ups to OBHS staff
+def send_obhs_notification(complain_details: Dict, obhs_users: List[Dict]):
+    """
+    Send real-time push/pop-up notifications to OBHS staff.
+    This fulfills the requirement: "Notification is raised ... pop-up appeared at the relevant OBHS".
+    """
+    notification_payload = {
+        "complain_id": complain_details.get("complain_id"),
+        "train_no": complain_details.get("train_no"),
+        "date_of_journey": complain_details.get("date_of_journey"),
+        "coach": complain_details.get("coach"),
+        "berth": complain_details.get("berth_no"),
+        "description": complain_details.get("complain_description"),
+    }
+
+    try:
+        for obhs_user in obhs_users:
+            try:
+                token = obhs_user.get("fcm_token")
+                if not token:
+                    logging.warning(f"No FCM token for OBHS user {obhs_user['id']}")
+                    continue
+
+                send_push_notification(
+                    token=token,
+                    title=f"New Complaint for Train {complain_details['train_no']}",
+                    body=complain_details.get("complain_description", "New complaint registered"),
+                    data=notification_payload
+                 )
+            except Exception as inner_e:
+                logging.error(f"Failed to notify OBHS user {obhs_user.get('id')}: {inner_e}")
+    except Exception as e:
+        logging.error(f"Unexpected error in OBHS notification flow: {e}")
 
 def send_passenger_complain_email(complain_details: Dict):
     """Send complaint email to war room users with CC to other users"""
@@ -73,6 +107,7 @@ def send_passenger_complain_email(complain_details: Dict):
     s2_admin_users = []
     railway_admin_users = []
     assigned_users_list = []
+    obhs_users = []
     
     #print(f"Complain Details for mail: {complain_details}")
     train_depo = complain_details.get('train_depo', '')
@@ -129,7 +164,9 @@ def send_passenger_complain_email(complain_details: Dict):
         """
 
         railway_admin_users = execute_query(conn, railway_admin_query)
-        
+
+        obhs_users = complain_details.get("assigned_obhs", [])
+
         # Updated query to get train access users with better filtering
         assigned_users_query = """
             SELECT u.email, u.id, u.first_name, u.last_name, ta.train_details
@@ -280,6 +317,10 @@ def send_passenger_complain_email(complain_details: Dict):
         
         template = Template(template_content)
         message = template.render(context)
+        
+        # Trigger OBHS notifications here
+        if obhs_users:
+            send_obhs_notification(complain_details, obhs_users)
 
         # Collect all unique email addresses
         all_emails = []
