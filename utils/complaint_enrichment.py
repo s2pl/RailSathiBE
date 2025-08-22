@@ -82,4 +82,24 @@ Kindly verify the WRUR assignment to the given train depot.
     complaint_data["customer_care"] = war_room_phone
     complaint_data["train_depot"] = train_depot_name
 
+    # Fetch OBHS staff assigned to this train journey
+    try:
+        obhs_user_query = f"""
+            SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.fcm_token, ut.name as role
+            FROM user_onboarding_user u
+            JOIN user_onboarding_roles ut ON u.user_type_id = ut.id
+            JOIN trains_trainaccess ta ON ta.user_id = u.id
+            WHERE ut.name IN ('EHK', 'CA', 'CS')  -- Only OBHS staff roles
+            AND ta.train_no = '{train_number}'
+            AND ta.date_of_journey = '{date_of_journey}'
+        """
+        conn = get_db_connection()
+        obhs_users = execute_query(conn, obhs_user_query)
+        conn.close()
+    except Exception as e:
+        logger.error(f"[OBHS Lookup] Error fetching OBHS staff: {e}")
+        obhs_users = []
+
+    complaint_data["assigned_obhs"] = obhs_users
+
     return complaint_data
