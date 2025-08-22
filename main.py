@@ -89,7 +89,7 @@ class RailSathiComplainData(BaseModel):
     updated_at: datetime
     updated_by: Optional[str]
     # Add the missing fields from your actual data
-    customer_care: str | None = Field(default=None)
+    customer_care: Optional[str]
     train_depot: Optional[str]
     rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse]
 
@@ -970,6 +970,8 @@ async def get_complaint(complain_id: int, request: Request, token:str = Security
         if not complaint:
             raise HTTPException(status_code=404, detail="Complaint not found")
         
+        if "customer_care" not in complaint:
+            complaint["customer_care"] = None
         # Wrap the complaint in the expected response format
         return RailSathiComplainResponse(
             message="Complaint retrieved successfully",
@@ -1251,7 +1253,7 @@ async def create_complaint_endpoint_threaded(
 
 @app.patch("/rs_microservice/v2/complaint/update/{complain_id}", response_model=RailSathiComplainResponse)
 @user_authentication
-async def update_complaint_endpoint(complain_id: int, request: Request, token:str = Security(oauth2_scheme), current_user: dict = None,
+async def update_complaint_endpoint(complain_id: int, request: Request, token:str = Security(oauth2_scheme),
     pnr_number: Optional[str] = Form(None),
     is_pnr_validated: Optional[str] = Form(None),
     name: Optional[str] = Form(None),
