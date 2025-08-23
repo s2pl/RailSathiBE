@@ -358,7 +358,9 @@ def create_complaint(complaint_data):
             now
         ))
         
-        complain_id = cursor.fetchone()[0]
+        row = cursor.fetchone()
+        complain_id = row['complain_id']
+
         conn.commit()
         
         # Get the created complaint
@@ -592,10 +594,10 @@ def update_complaint(complain_id: int, update_data: dict):
                     date_of_journey = datetime.now()
                 
                 train_depo = ''
-
+                
                 if complaint_data.get('train_number'):
                     print(f"Fetching train depot for train number: {complaint_data['train_number']}")
-
+ 
                     train_query = "SELECT * FROM trains_traindetails WHERE train_no = %s"
                     train_conn = get_db_connection()
                     train = execute_query_one(train_conn, train_query, (complaint_data['train_number'],))
@@ -605,8 +607,6 @@ def update_complaint(complain_id: int, update_data: dict):
 
                 else:
                     train_depo = 'Not known'
-                    
-
                 
                 details = {
                     'train_no': complaint_data.get('train_number', ''),
