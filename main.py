@@ -1276,6 +1276,7 @@ async def update_complaint_endpoint(complain_id: int, request: Request, token:st
         
         # Check if complaint exists and validate permissions
         existing_complaint = get_complaint_by_id(complain_id)
+
         if not existing_complaint:
             raise HTTPException(status_code=404, detail="Complaint not found")
         
@@ -1356,6 +1357,9 @@ async def update_complaint_endpoint(complain_id: int, request: Request, token:st
         
         # Get final updated complaint with media files
         final_complaint = get_complaint_by_id(complain_id)
+        #ensure customer_care exists
+        if "customer_care" not in final_complaint:
+           final_complaint["customer_care"] = None
         print(f"Final complaint data retrieved with {len(final_complaint.get('rail_sathi_complain_media_files', []))} media files")
         
         return {
@@ -1377,7 +1381,6 @@ async def replace_complaint_endpoint(
     complain_id: int,
     request: Request,
     token:str = Security(oauth2_scheme),
-    current_user: dict = None,
 
     pnr_number: Optional[str] = Form(None),
     is_pnr_validated: str = Form("not-attempted"),
@@ -1403,7 +1406,8 @@ async def replace_complaint_endpoint(
         existing_complaint = get_complaint_by_id(complain_id)
         if not existing_complaint:
             raise HTTPException(status_code=404, detail="Complaint not found")
-        
+        user = request.state.current_user
+        username = user["username"]
         # Check permissions
         if (existing_complaint["created_by"] != name or 
             existing_complaint["complain_status"] == "completed" or 
@@ -1425,7 +1429,7 @@ async def replace_complaint_endpoint(
             "train_name": train_name,
             "coach": coach,
             "berth_no": berth_no,
-            "updated_by": name
+            "updated_by": username
         }
         
         # Update complaint
@@ -1503,7 +1507,6 @@ async def delete_complaint_endpoint(
     complain_id: int,
     request: Request,
     token:str = Security(oauth2_scheme),
-    current_user: dict = None,
     name: str = Form(...),
     mobile_number: str = Form(...)
 ):
