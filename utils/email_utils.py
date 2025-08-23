@@ -9,6 +9,7 @@ from database import get_db_connection, execute_query  # Fixed import
 from datetime import datetime
 import pytz
 import json
+from utils.push_notification import send_push_notification
 
 EMAIL_SENDER = conf.MAIL_FROM
 
@@ -66,6 +67,30 @@ def send_plain_mail(subject: str, message: str, from_: str, to: List[str], cc: L
         logging.exception(f"Error in send_plain_mail: {repr(e)}")
         return False
 
+# Function to send push/pop-ups to OBHS staff
+def send_obhs_notification(complain_details: Dict, users_tokens: List[str]):
+    notification_payload = {
+        "complain_id": complain_details.get("complain_id"),
+        "train_no": complain_details.get("train_no"),
+        "train_name": complain_details.get("train_name"),
+        "coach": complain_details.get("coach"),
+        "berth": complain_details.get("berth_no"),
+        "description": complain_details.get("complain_description"),
+    }
+
+    try:
+        for token in users_tokens:
+            try:
+                send_push_notification(
+                    token=token,
+                    title=f"New Complaint for Train {complain_details['train_no']}",
+                    body=complain_details.get("complain_description", "New complaint registered"),
+                    data=notification_payload
+                )
+            except Exception as inner_e:
+                logging.error(f"Failed to notify OBHS user with token {token}: {inner_e}")
+    except Exception as e:
+        logging.error(f"Unexpected error in OBHS notification flow: {e}")
 
 def send_passenger_complain_email(complain_details: Dict):
     """Send complaint email to war room users with CC to other users"""
@@ -129,10 +154,11 @@ def send_passenger_complain_email(complain_details: Dict):
         """
 
         railway_admin_users = execute_query(conn, railway_admin_query)
-        
+
+
         # Updated query to get train access users with better filtering
         assigned_users_query = """
-            SELECT u.email, u.id, u.first_name, u.last_name, ta.train_details
+            SELECT u.email, u.id, u.first_name, u.last_name,u.fcm_token, u.user_type, ta.train_details
             FROM user_onboarding_user u
             JOIN trains_trainaccess ta ON ta.user_id = u.id
             WHERE ta.train_details IS NOT NULL 
@@ -142,7 +168,10 @@ def send_passenger_complain_email(complain_details: Dict):
         conn = get_db_connection()
         assigned_users_raw = execute_query(conn, assigned_users_query)
         conn.close()
-        
+
+        # Fetching and storing the OBHS users fcm tokens
+        users_tokens = [user["fcm_token"] for user in assigned_users_raw if user.get("fcm_token") and user.get("user_type") == "OBHS"]
+
         # Get train number and complaint date for filtering
         train_no = str(complain_details.get('train_no', '')).strip()
         
@@ -280,6 +309,10 @@ def send_passenger_complain_email(complain_details: Dict):
         
         template = Template(template_content)
         message = template.render(context)
+        
+        # Trigger OBHS notifications here
+        if users_tokens:
+            send_obhs_notification(complain_details, users_tokens)
 
         # Collect all unique email addresses
         all_emails = []
