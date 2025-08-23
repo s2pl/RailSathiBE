@@ -6,7 +6,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, date, time , timedelta
 from jose import JWTError, jwt
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-import functools
 from database import get_db_connection, execute_query_one, execute_query
 from passlib.hash import django_pbkdf2_sha256
 import asyncio
@@ -924,44 +923,32 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     finally:
         conn.close()
 
-#User authentication Decorator
-def user_authentication(func):
+#User authentication Dependecy
+def get_current_user(token: str = Depends(oauth2_scheme)):
     """Check JWT token in Authorization header"""
-    @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
-        request: Request = kwargs.get("request") or args[0]
-        auth_header = request.headers.get("Authorization")
 
-        if not auth_header or not auth_header.startswith("Bearer "):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
             raise HTTPException(
                 status_code=401,
-                detail="Not authenticated"
-            )
-        # Extract token from header
-        token = auth_header.split(" ")[1]
-        try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            username: str = payload.get("sub")
-            if username is None:
-                raise HTTPException(
-                    status_code=401,
-                    detail="Invalid token"
+                detail="Invalid token"
                 )
-            request.state.current_user = {"username": username}
-            
-        except JWTError:
-            raise HTTPException(
+        return{"username": username}
+    except JWTError:
+        raise HTTPException(
                 status_code=401,
                 detail="Invalid or expired token"
             )
-        return await func(*args, **kwargs)
 
-    return wrapper
+
 
 logger = logging.getLogger("main")
 @app.get("/rs_microservice/v2/complaint/get/{complain_id}", response_model=RailSathiComplainResponse)
-@user_authentication
-async def get_complaint(complain_id: int, request: Request, token:str = Security(oauth2_scheme), current_user: dict = None):
+async def get_complaint(
+    complain_id: int,
+    current_user: dict = Depends(get_current_user)):
     """Get complaint by ID"""
     try:
         complaint = get_complaint_by_id(complain_id)
@@ -986,8 +973,10 @@ async def get_complaint(complain_id: int, request: Request, token:str = Security
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/rs_microservice/v2/complaint/get/date/{date_str}", response_model=List[RailSathiComplainResponse])
-@user_authentication
-async def get_complaints_by_date_endpoint(request: Request,date_str: str, token:str = Security(oauth2_scheme),mobile_number: Optional[str] = None, current_user: dict = None):
+async def get_complaints_by_date_endpoint(
+    date_str: str,
+    mobile_number: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)):
     """Get complaints by date and mobile number"""
     try:
         # Validate date format
@@ -1019,10 +1008,8 @@ async def get_complaints_by_date_endpoint(request: Request,date_str: str, token:
 
 @app.post("/rs_microservice/v2/complaint/add", response_model=RailSathiComplainResponse)
 @app.post("/rs_microservice/v2/complaint/add/", response_model=RailSathiComplainResponse)
-@user_authentication
 async def create_complaint_endpoint_threaded(
-    request: Request,
-    token: str = Security(oauth2_scheme),
+    current_user: dict = Depends(get_current_user),
 
     pnr_number: Optional[str] = Form(None),
     is_pnr_validated: Optional[str] = Form("not-attempted"),
@@ -1060,11 +1047,6 @@ async def create_complaint_endpoint_threaded(
                     f"coach: {coach}, "
                     f"berth_no: {berth_no}"
                     f"}}")
-        
-
-        # Safely extract current_user from kwargs
-        frame = inspect.currentframe()
-        current_user = request.state.current_user
 
         if not current_user or "username" not in current_user:
             raise HTTPException(status_code=401, detail="User not authenticated")
@@ -1252,8 +1234,10 @@ async def create_complaint_endpoint_threaded(
 
 
 @app.patch("/rs_microservice/v2/complaint/update/{complain_id}", response_model=RailSathiComplainResponse)
-@user_authentication
-async def update_complaint_endpoint(complain_id: int, request: Request, token:str = Security(oauth2_scheme),
+async def update_complaint_endpoint(
+    complain_id: int,
+    current_user: dict = Depends(get_current_user),
+
     pnr_number: Optional[str] = Form(None),
     is_pnr_validated: Optional[str] = Form(None),
     name: Optional[str] = Form(None),
@@ -1376,11 +1360,9 @@ async def update_complaint_endpoint(complain_id: int, request: Request, token:st
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.put("/rs_microservice/v2/complaint/update/{complain_id}", response_model=RailSathiComplainResponse)
-@user_authentication
 async def replace_complaint_endpoint(
     complain_id: int,
-    request: Request,
-    token:str = Security(oauth2_scheme),
+    current_user: dict = Depends(get_current_user),
 
     pnr_number: Optional[str] = Form(None),
     is_pnr_validated: str = Form("not-attempted"),
@@ -1406,12 +1388,12 @@ async def replace_complaint_endpoint(
         existing_complaint = get_complaint_by_id(complain_id)
         if not existing_complaint:
             raise HTTPException(status_code=404, detail="Complaint not found")
-        user = request.state.current_user
-        username = user["username"]
+        
+        username = current_user["username"]
+
         # Check permissions
-        if (existing_complaint["created_by"] != name or 
-            existing_complaint["complain_status"] == "completed" or 
-            existing_complaint["mobile_number"] != mobile_number):
+        if (existing_complaint["created_by"] != username or 
+            existing_complaint["complain_status"] == "completed"):
             raise HTTPException(status_code=403, detail="Only user who created the complaint can update it.")
         
         # Prepare full update data
@@ -1486,7 +1468,8 @@ async def replace_complaint_endpoint(
         # Get final updated complaint with media files
         final_complaint = get_complaint_by_id(complain_id)
         print(f"Final complaint data retrieved with {len(final_complaint.get('rail_sathi_complain_media_files', []))} media files")
-        
+        if "customer_care" not in final_complaint:
+           final_complaint["customer_care"] = None
         # Return properly formatted response (this was the missing part!)
         return {
             "message": "Complaint replaced successfully",
@@ -1502,13 +1485,11 @@ async def replace_complaint_endpoint(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.delete("/rs_microservice/v2/complaint/delete/{complain_id}")
-@user_authentication
 async def delete_complaint_endpoint(
     complain_id: int,
-    request: Request,
-    token:str = Security(oauth2_scheme),
     name: str = Form(...),
-    mobile_number: str = Form(...)
+    mobile_number: str = Form(...),
+    current_user: dict = Depends(get_current_user)
 ):
     """Delete complaint"""
     try:
@@ -1519,8 +1500,10 @@ async def delete_complaint_endpoint(
         if not existing_complaint:
             raise HTTPException(status_code=404, detail="Complaint not found")
         
+        username = current_user["username"]
+
         # Check permissions
-        if (existing_complaint["created_by"] != name or 
+        if (existing_complaint["created_by"] != username or 
             existing_complaint["complain_status"] == "completed" or 
             existing_complaint["mobile_number"] != mobile_number):
             raise HTTPException(status_code=403, detail="Only user who created the complaint can delete it.")
@@ -1540,15 +1523,12 @@ async def delete_complaint_endpoint(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.delete("/rs_microservice/v2/media/delete/{complain_id}")
-@user_authentication
 async def delete_complaint_media_endpoint(
     complain_id: int,
-    request: Request,
-    token:str = Security(oauth2_scheme),
-    current_user: dict = None,
     name: str = Form(...),
     mobile_number: str = Form(...),
-    deleted_media_ids: List[int] = Form(...)
+    deleted_media_ids: List[int] = Form(...),
+    current_user: dict = Depends(get_current_user)
 ):
     """Delete complaint media files"""
     try:
