@@ -68,9 +68,10 @@ def send_plain_mail(subject: str, message: str, from_: str, to: List[str], cc: L
         return False
 
 # Function to send push/pop-ups to OBHS staff
-def send_obhs_notification(complain_details: Dict, users_tokens: List[str]):
+def send_notifications(complain_details: Dict, users_tokens: List[str]):
     notification_payload = {
         "complain_id": complain_details.get("complain_id"),
+        "complain_date": complain_details.get("created_at"),
         "train_no": complain_details.get("train_no"),
         "train_name": complain_details.get("train_name"),
         "coach": complain_details.get("coach"),
@@ -158,7 +159,7 @@ def send_passenger_complain_email(complain_details: Dict):
 
         # Updated query to get train access users with better filtering
         assigned_users_query = """
-            SELECT u.email, u.id, u.first_name, u.last_name,u.fcm_token, u.user_type, ta.train_details
+            SELECT u.email, u.id, u.first_name, u.last_name,u.fcm_token, ta.train_details
             FROM user_onboarding_user u
             JOIN trains_trainaccess ta ON ta.user_id = u.id
             WHERE ta.train_details IS NOT NULL 
@@ -169,8 +170,6 @@ def send_passenger_complain_email(complain_details: Dict):
         assigned_users_raw = execute_query(conn, assigned_users_query)
         conn.close()
 
-        # Fetching and storing the OBHS users fcm tokens
-        users_tokens = [user["fcm_token"] for user in assigned_users_raw if user.get("fcm_token") and user.get("user_type") == "OBHS"]
 
         # Get train number and complaint date for filtering
         train_no = str(complain_details.get('train_no', '')).strip()
@@ -227,6 +226,9 @@ def send_passenger_complain_email(complain_details: Dict):
                 except (json.JSONDecodeError, TypeError) as json_error:
                     logging.warning(f"JSON parsing error for user {user.get('id')}: {json_error}")
                     continue
+        
+        # Fetching and storing the OBHS users fcm tokens
+        users_tokens = [user["fcm_token"] for user in assigned_users_list if user.get("fcm_token")]
 
         # Combine all users and collect unique emails
         all_users_to_mail = war_room_user_in_depot + s2_admin_users + railway_admin_users + assigned_users_list
@@ -312,7 +314,7 @@ def send_passenger_complain_email(complain_details: Dict):
         
         # Trigger OBHS notifications here
         if users_tokens:
-            send_obhs_notification(complain_details, users_tokens)
+            send_notifications(complain_details, users_tokens)
 
         # Collect all unique email addresses
         all_emails = []
