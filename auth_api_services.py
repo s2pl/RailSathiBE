@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends ,Request,Security
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends ,Request,Security, APIRouter
 from fastapi.responses import JSONResponse
 from typing import List, Optional
 from pydantic import BaseModel, Field
@@ -25,121 +25,108 @@ from database import get_db_connection, execute_query
 import os
 from dotenv import load_dotenv
 from utils.email_utils import send_plain_mail
+from main import RailSathiComplainResponse
+
+#use router
+router = APIRouter(prefix="/rs_microservice/v2", tags=["Auth Complaint APIs"])
+
+#----------------------AUTHENTICATED APIs ----------------------#
 
 
-app = FastAPI(
-    title="Rail Sathi Complaint API",
-    description="API for handling rail complaints",
-    version="1.0.0",
-    openapi_url="/rs_microservice/openapi.json",  # Add the prefix here
-    docs_url="/rs_microservice/docs",             # Add the prefix here
-    redoc_url="/rs_microservice/redoc"            # Add the prefix here (optional)
-)
+load_dotenv()
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/rs_microservice/v2/token")
+
+#JWT configuration
+SECRET_KEY = os.getenv("JWT_SECRET_KEY","fallback_dummy_key")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES",30))
 
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+#JWT token generator
+def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=30)):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + expires_delta 
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-from database import get_db_connection
-from psycopg2.extras import RealDictCursor
+#User authentication Dependecy
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    """Check JWT token in Authorization header"""
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+                )
+        return{"username": username}
+    except JWTError:
+        raise HTTPException(
+                status_code=401,
+                detail="Invalid or expired token"
+            )
+
+#Login Endpoint to get JWT token
+@router.post("/token")
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Login endpoint to get JWT token"""
+    conn = get_db_connection()
+    try:
+        user = execute_query(
+            conn,
+            "SELECT * FROM user_onboarding_user WHERE username = %s",
+            (form_data.username,)
+        )
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found or invalid credentials")
+        
+        if not django_pbkdf2_sha256.verify(form_data.password, user[0]['password']):
+            raise HTTPException(status_code=401, detail="Incorrect password")
+        
+        token = create_access_token(data={"sub": user[0]['username']})
+        return {"access_token": token, "token_type": "bearer"}
+    
+    finally:
+        conn.close()
 
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-@app.get("/rs_microservice")
-async def root():
-    return {"message": "Rail Sathi Microservice is running"}
-
-
-class RailSathiComplainMediaResponse(BaseModel):
-    id: int
-    media_type: Optional[str]
-    media_url: Optional[str]
-    created_at: datetime
-    updated_at: datetime
-    created_by: Optional[str]
-    updated_by: Optional[str]
-
-# Separate the complaint data model
-class RailSathiComplainData(BaseModel):
-    complain_id: int
-    pnr_number: Optional[str]
-    is_pnr_validated: Optional[str]
-    name: Optional[str]
-    mobile_number: Optional[str]
-    complain_type: Optional[str]
-    complain_description: Optional[str]
-    complain_date: Optional[date]
-    complain_status: str
-    train_id: Optional[int]
-    train_number: Optional[str]
-    train_name: Optional[str]
-    coach: Optional[str]
-    berth_no: Optional[int]
-    created_at: datetime
-    created_by: Optional[str]
-    updated_at: datetime
-    updated_by: Optional[str]
-    # Add the missing fields from your actual data
-    customer_care: Optional[str]
-    train_depot: Optional[str]
-    rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse]
-
-# Response wrapper that matches your actual API response structure
-class RailSathiComplainResponse(BaseModel):
-    message: str
-    data: RailSathiComplainData
-
-# Alternative: If you want to keep the flat structure, modify your endpoint to return:
-class RailSathiComplainFlatResponse(BaseModel):
-    message: str
-    complain_id: int
-    pnr_number: Optional[str]
-    is_pnr_validated: Optional[str]
-    name: Optional[str]
-    mobile_number: Optional[str]
-    complain_type: Optional[str]
-    complain_description: Optional[str]
-    complain_date: Optional[date]
-    complain_status: str
-    train_id: Optional[int]
-    train_number: Optional[str]
-    train_name: Optional[str]
-    coach: Optional[str]
-    berth_no: Optional[int]
-    created_at: datetime
-    created_by: Optional[str]
-    updated_at: datetime
-    updated_by: Optional[str]
-    rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse]
-
-@app.get("/rs_microservice/complaint/get/{complain_id}", response_model=RailSathiComplainResponse)
-async def get_complaint(complain_id: int):
+logger = logging.getLogger("main")
+@router.get("/complaint/get/{complain_id}", response_model=RailSathiComplainResponse)
+async def get_complaint(
+    complain_id: int,
+    current_user: dict = Depends(get_current_user)):
     """Get complaint by ID"""
     try:
         complaint = get_complaint_by_id(complain_id)
+        logger.info(f"Complaint fetched: {complaint}")
+
         if not complaint:
             raise HTTPException(status_code=404, detail="Complaint not found")
         
+        if "customer_care" not in complaint:
+            complaint["customer_care"] = None
         # Wrap the complaint in the expected response format
         return RailSathiComplainResponse(
             message="Complaint retrieved successfully",
             data=complaint
         )
+    
+    except HTTPException:
+        raise
+
     except Exception as e:
-        logger.error(f"Error getting complaint {complain_id}: {str(e)}")
+        logger.exception(f"Error getting complaint {complain_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
-@app.get("/rs_microservice/complaint/get/date/{date_str}", response_model=List[RailSathiComplainResponse])
-async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional[str] = None):
+@router.get("/complaint/get/date/{date_str}", response_model=List[RailSathiComplainResponse])
+async def get_complaints_by_date_endpoint(
+    date_str: str,
+    mobile_number: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)):
     """Get complaints by date and mobile number"""
     try:
         # Validate date format
@@ -151,58 +138,29 @@ async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional
         if not mobile_number:
             raise HTTPException(status_code=400, detail="mobile_number parameter is required")
         
-        # Validate mobile number format if needed
-        if not mobile_number.strip():
-            raise HTTPException(status_code=400, detail="mobile_number cannot be empty")
-        
         complaints = get_complaints_by_date(complaint_date, mobile_number)
-        
-        # Handle empty results
-        if not complaints:
-            return []
         
         # Wrap each complaint in the expected response format
         response_list = []
         for complaint in complaints:
-            try:
-                # Ensure all required fields are present for RailSathiComplainResponse
-                if 'customer_care' not in complaint:
-                    complaint['customer_care'] = None
-                
-                response_list.append(RailSathiComplainResponse(
-                    message="Complaint retrieved successfully",
-                    data=complaint
-                ))
-            except Exception as validation_error:
-                logger.error(f"Error creating response for complaint: {str(validation_error)}")
-                logger.error(f"Complaint data: {complaint}")
-                # Add the missing field and try again
-                try:
-                    complaint['customer_care'] = None
-                    response_list.append(RailSathiComplainResponse(
-                        message="Complaint retrieved successfully",
-                        data=complaint
-                    ))
-                except Exception as retry_error:
-                    logger.error(f"Retry failed for complaint {complaint.get('complain_id')}: {str(retry_error)}")
-                    # Continue with other complaints rather than failing completely
-                    continue
+            response_list.append(RailSathiComplainResponse(
+                message="Complaint retrieved successfully",
+                data=complaint
+            ))
         
         return response_list
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting complaints by date {date_str} for mobile {mobile_number}: {str(e)}")
-        logger.error(f"Exception type: {type(e).__name__}")
-        import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.error(f"Error getting complaints by date {date_str}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-
-@app.post("/rs_microservice/complaint/add", response_model=RailSathiComplainResponse)
-@app.post("/rs_microservice/complaint/add/", response_model=RailSathiComplainResponse)
+@router.post("/complaint/add", response_model=RailSathiComplainResponse)
+@router.post("/complaint/add/", response_model=RailSathiComplainResponse)
 async def create_complaint_endpoint_threaded(
+    current_user: dict = Depends(get_current_user),
+
     pnr_number: Optional[str] = Form(None),
     is_pnr_validated: Optional[str] = Form("not-attempted"),
     name: Optional[str] = Form(None),
@@ -239,7 +197,9 @@ async def create_complaint_endpoint_threaded(
                     f"coach: {coach}, "
                     f"berth_no: {berth_no}"
                     f"}}")
-        
+
+        if not current_user or "username" not in current_user:
+            raise HTTPException(status_code=401, detail="User not authenticated")
         # Prepare complaint data
         complaint_data = {
             "pnr_number": pnr_number,
@@ -256,7 +216,7 @@ async def create_complaint_endpoint_threaded(
             "train_name": train_name,
             "coach": coach,
             "berth_no": berth_no,
-            "created_by": name
+            "created_by": current_user["username"] #changed to logged in user
         }
         
        # Initialize default values
@@ -423,9 +383,11 @@ async def create_complaint_endpoint_threaded(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@app.patch("/rs_microservice/complaint/update/{complain_id}", response_model=RailSathiComplainResponse)
+@router.patch("/complaint/update/{complain_id}", response_model=RailSathiComplainResponse)
 async def update_complaint_endpoint(
     complain_id: int,
+    current_user: dict = Depends(get_current_user),
+
     pnr_number: Optional[str] = Form(None),
     is_pnr_validated: Optional[str] = Form(None),
     name: Optional[str] = Form(None),
@@ -445,16 +407,22 @@ async def update_complaint_endpoint(
     try:
         print(f"Updating complaint {complain_id} for user: {name}")
         print(f"Number of files received: {len(rail_sathi_complain_media_files)}")
-
+        
+        # Check if complaint exists and validate permissions
         existing_complaint = get_complaint_by_id(complain_id)
+
         if not existing_complaint:
             raise HTTPException(status_code=404, detail="Complaint not found")
-
-        # Prepare update data
-        update_data = {
-            "submission_status": "submitted",  # ✅ Always set on update
-            "updated_by": name
-        }
+        
+        # # Check permissions
+        # if (existing_complaint["created_by"] != name or 
+        #     existing_complaint["complain_status"] == "completed" or 
+        #     existing_complaint["mobile_number"] != mobile_number):
+        #     raise HTTPException(status_code=403, detail="Only user who created the complaint can update it.")
+        
+        # Prepare update data (only include non-None values)
+        
+        update_data = {}
         if pnr_number is not None: update_data["pnr_number"] = pnr_number
         if is_pnr_validated is not None: update_data["is_pnr_validated"] = is_pnr_validated
         if name is not None: update_data["name"] = name
@@ -468,71 +436,84 @@ async def update_complaint_endpoint(
         if train_name is not None: update_data["train_name"] = train_name
         if coach is not None: update_data["coach"] = coach
         if berth_no is not None: update_data["berth_no"] = berth_no
-
-        # Update DB
-        update_complaint(complain_id, update_data)
+        update_data["updated_by"] = name
+        
+        # Update complaint
+        updated_complaint = update_complaint(complain_id, update_data)
         print(f"Complaint {complain_id} updated successfully")
-
-        # Upload media files
-        if rail_sathi_complain_media_files:
+        
+        # Handle file uploads if any files are provided (similar to create endpoint)
+        if rail_sathi_complain_media_files and len(rail_sathi_complain_media_files) > 0:
+            print(f"Processing {len(rail_sathi_complain_media_files)} files")
+            
+            # Read all file contents first (before threading)
             file_data_list = []
             for file_obj in rail_sathi_complain_media_files:
-                if file_obj.filename:
-                    content = await file_obj.read()
+                if file_obj.filename:  # Check if file is actually uploaded
+                    file_content = await file_obj.read()
                     file_data_list.append({
-                        "content": content,
-                        "filename": file_obj.filename,
-                        "content_type": file_obj.content_type
+                        'content': file_content,
+                        'filename': file_obj.filename,
+                        'content_type': file_obj.content_type
                     })
+                    print(f"Read file: {file_obj.filename}, size: {len(file_content)}")
+            
+            # Process files in threads
             threads = []
-            for file in file_data_list:
+            for file_data in file_data_list:
+                # Create a mock file object for threading
                 class MockFile:
                     def __init__(self, content, filename, content_type):
                         self.content = content
                         self.filename = filename
                         self.content_type = content_type
+                    
                     def read(self):
                         return self.content
-                mock_file = MockFile(file["content"], file["filename"], file["content_type"])
+                
+                mock_file = MockFile(file_data['content'], file_data['filename'], file_data['content_type'])
                 t = threading.Thread(
-                    target=upload_file_thread,
+                    target=upload_file_thread, 
                     args=(mock_file, complain_id, name or ''),
-                    name=f"FileUpload-{complain_id}-{file['filename']}"
+                    name=f"FileUpload-{complain_id}-{file_data['filename']}"
                 )
                 t.start()
                 threads.append(t)
+                print(f"Started thread for file: {file_data['filename']}")
+            
+            # Wait for all threads to complete
             for t in threads:
                 t.join()
-
-        await asyncio.sleep(1)  # Ensure file threads complete
-
-        # ✅ Final enriched response just like POST
-        final_complaint = await enrich_complaint_response_and_trigger_email(
-            complain_id=complain_id,
-            pnr_number=pnr_number or existing_complaint.get("pnr_number"),
-            train_number=train_number or existing_complaint.get("train_number"),
-            coach=coach or existing_complaint.get("coach"),
-            berth_no=berth_no or existing_complaint.get("berth_no"),
-            date_of_journey=complain_date or existing_complaint.get("complain_date")
-        )
-
+                print(f"Thread completed: {t.name}")
+        
+        # Add a small delay to ensure database operations complete
+        await asyncio.sleep(1)
+        
+        # Get final updated complaint with media files
+        final_complaint = get_complaint_by_id(complain_id)
+        #ensure customer_care exists
+        if "customer_care" not in final_complaint:
+           final_complaint["customer_care"] = None
+        print(f"Final complaint data retrieved with {len(final_complaint.get('rail_sathi_complain_media_files', []))} media files")
+        
         return {
             "message": "Complaint updated successfully",
             "data": final_complaint
         }
-
+        
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error updating complaint {complain_id}: {str(e)}")
         import traceback
-        logger.error(traceback.format_exc())
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-
-@app.put("/rs_microservice/complaint/update/{complain_id}", response_model=RailSathiComplainResponse)
+@router.put("/complaint/update/{complain_id}", response_model=RailSathiComplainResponse)
 async def replace_complaint_endpoint(
     complain_id: int,
+    current_user: dict = Depends(get_current_user),
+
     pnr_number: Optional[str] = Form(None),
     is_pnr_validated: str = Form("not-attempted"),
     name: Optional[str] = Form(None),
@@ -558,10 +539,11 @@ async def replace_complaint_endpoint(
         if not existing_complaint:
             raise HTTPException(status_code=404, detail="Complaint not found")
         
+        username = current_user["username"]
+
         # Check permissions
-        if (existing_complaint["created_by"] != name or 
-            existing_complaint["complain_status"] == "completed" or 
-            existing_complaint["mobile_number"] != mobile_number):
+        if (existing_complaint["created_by"] != username or 
+            existing_complaint["complain_status"] == "completed"):
             raise HTTPException(status_code=403, detail="Only user who created the complaint can update it.")
         
         # Prepare full update data
@@ -579,7 +561,7 @@ async def replace_complaint_endpoint(
             "train_name": train_name,
             "coach": coach,
             "berth_no": berth_no,
-            "updated_by": name
+            "updated_by": username
         }
         
         # Update complaint
@@ -636,7 +618,8 @@ async def replace_complaint_endpoint(
         # Get final updated complaint with media files
         final_complaint = get_complaint_by_id(complain_id)
         print(f"Final complaint data retrieved with {len(final_complaint.get('rail_sathi_complain_media_files', []))} media files")
-        
+        if "customer_care" not in final_complaint:
+           final_complaint["customer_care"] = None
         # Return properly formatted response (this was the missing part!)
         return {
             "message": "Complaint replaced successfully",
@@ -651,11 +634,12 @@ async def replace_complaint_endpoint(
         logger.error(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@app.delete("/rs_microservice/complaint/delete/{complain_id}")
+@router.delete("/complaint/delete/{complain_id}")
 async def delete_complaint_endpoint(
     complain_id: int,
     name: str = Form(...),
-    mobile_number: str = Form(...)
+    mobile_number: str = Form(...),
+    current_user: dict = Depends(get_current_user)
 ):
     """Delete complaint"""
     try:
@@ -666,8 +650,10 @@ async def delete_complaint_endpoint(
         if not existing_complaint:
             raise HTTPException(status_code=404, detail="Complaint not found")
         
+        username = current_user["username"]
+
         # Check permissions
-        if (existing_complaint["created_by"] != name or 
+        if (existing_complaint["created_by"] != username or 
             existing_complaint["complain_status"] == "completed" or 
             existing_complaint["mobile_number"] != mobile_number):
             raise HTTPException(status_code=403, detail="Only user who created the complaint can delete it.")
@@ -686,12 +672,13 @@ async def delete_complaint_endpoint(
         logger.error(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@app.delete("/rs_microservice/media/delete/{complain_id}")
+@router.delete("/media/delete/{complain_id}")
 async def delete_complaint_media_endpoint(
     complain_id: int,
     name: str = Form(...),
     mobile_number: str = Form(...),
-    deleted_media_ids: List[int] = Form(...)
+    deleted_media_ids: List[int] = Form(...),
+    current_user: dict = Depends(get_current_user)
 ):
     """Delete complaint media files"""
     try:
@@ -740,142 +727,3 @@ def make_json_serializable(data):
         return data.isoformat()
     else:
         return data
-
-@app.get("/rs_microservice/train_details/{train_no}")
-def get_train_details(train_no: str):
-    conn = get_db_connection()
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-
-    try:
-        cursor.execute("SELECT * FROM trains_traindetails WHERE train_no = %s", (train_no,))
-        train_detail = cursor.fetchone()
-
-        if not train_detail:
-            return JSONResponse(content={"error": "Train not found"}, status_code=404)
-
-        depot_code = train_detail.get('Depot')
-        cursor.execute("SELECT * FROM station_Depot WHERE depot_code = %s", (depot_code,))
-        depot = cursor.fetchone()
-
-        if depot:
-            division_code = depot.get("division_id")
-            cursor.execute("SELECT * FROM station_division WHERE division_id = %s", (division_code,))
-            division = cursor.fetchone()
-
-            zone_code = None
-            if division:
-                zone_id = division.get("zone_id")
-                cursor.execute("SELECT * FROM station_zone WHERE zone_id = %s", (zone_id,))
-                zone = cursor.fetchone()
-                zone_code = zone.get("zone_code") if zone else None
-
-            extra_info = {
-                "depot_code": depot.get("depot_code"),
-                "division_code": division.get("division_code") if division else None,
-                "zone_code": zone_code,
-            }
-        else:
-            extra_info = {
-                "depot_code": None,
-                "division_code": None,
-                "zone_code": None,
-            }
-
-        train_detail['extra_info'] = extra_info
-
-        # ✅ Convert to JSON-safe format before returning
-        safe_train_detail = make_json_serializable(train_detail)
-        return JSONResponse(content=safe_train_detail)
-
-    finally:
-        cursor.close()
-        conn.close()
-    
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy"}
-
-async def enrich_complaint_response_and_trigger_email(
-    complain_id: int,
-    pnr_number: Optional[str],
-    train_number: Optional[str],
-    coach: Optional[str],
-    berth_no: Optional[int],
-    date_of_journey: Optional[str],
-) -> dict:
-    train_depot_name = ''
-    war_room_phone = ''
-    
-    # Step 1: Get depot info
-    if train_number:
-        get_depot_query = f"""
-            SELECT "Depot" FROM trains_traindetails 
-            WHERE train_no = '{train_number}' LIMIT 1
-        """
-        conn = get_db_connection()
-        try:
-            depot_result = execute_query(conn, get_depot_query)
-            train_depot_name = depot_result[0]['Depot'] if depot_result else ''
-        except Exception as e:
-            logger.error(f"Error fetching depot: {str(e)}")
-        finally:
-            conn.close()
-
-    # Step 2: Get WRUR
-    if train_depot_name:
-        war_room_user_query = f"""
-            SELECT u.phone
-            FROM user_onboarding_user u
-            JOIN user_onboarding_roles ut ON u.user_type_id = ut.id
-            WHERE ut.name = 'war room user railsathi'
-            AND (
-                u.depo = '{train_depot_name}'
-                OR u.depo LIKE '{train_depot_name},%'
-                OR u.depo LIKE '%,{train_depot_name},%'
-                OR u.depo LIKE '%,{train_depot_name}'
-            )
-            AND u.phone IS NOT NULL
-            AND u.phone != ''
-            LIMIT 1
-        """
-        conn = get_db_connection()
-        try:
-            result = execute_query(conn, war_room_user_query)
-            war_room_phone = result[0]['phone'] if result else ''
-        except Exception as e:
-            logger.error(f"Error fetching WRUR: {str(e)}")
-        finally:
-            conn.close()
-
-    # Step 3: Send fallback email if WRUR not found
-    if not war_room_phone:
-        war_room_phone = "9123183988"
-        env = os.getenv("ENV")
-        subject = f"{env or 'LOCAL'} | {train_number} ({train_depot_name}) No War Room User RailSathi(WRUR) Found !"
-        message = f"""
-No War Room User RailSathi (WRUR) exists for PNR Number: {pnr_number} in Train Number: {train_number} 
-Coach/Berth: {coach}/{berth_no} on {date_of_journey}
-Train Depot: {train_depot_name}
-
-Kindly verify the WRUR assignment to the given train depot.
-"""
-        send_plain_mail(
-            subject=subject,
-            message=message,
-            from_=os.getenv("MAIL_FROM"),
-            to=["contact@suvidhaen.com"]
-        )
-
-    # Step 4: Fetch final complaint data with media
-    final_data = get_complaint_by_id(complain_id)
-    final_data["customer_care"] = war_room_phone
-    final_data["train_depot"] = train_depot_name
-    return final_data
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=5002)
-
-import auth_api_services
-app.include_router(auth_api_services.router)

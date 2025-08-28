@@ -32,7 +32,8 @@ def get_db_connection():
             port=DB_CONFIG['port'],
             user=DB_CONFIG['user'],
             password=DB_CONFIG['password'],
-            database=DB_CONFIG['database']
+            database=DB_CONFIG['database'],
+            cursor_factory=psycopg2.extras.RealDictCursor
         )
         connection.autocommit = False
         return connection
