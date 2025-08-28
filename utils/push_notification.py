@@ -6,7 +6,7 @@ from pyfcm import FCMNotification
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Path to service account JSON file
-service_account_path = os.path.join(BASE_DIR, "sa.json")
+service_account_path = os.path.join(BASE_DIR, "fcm_cred_sample.json")
 
 push_service = None
 try:
