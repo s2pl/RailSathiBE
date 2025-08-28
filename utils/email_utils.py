@@ -93,7 +93,7 @@ def send_notifications(complain_details: Dict, users_tokens: List[str]):
     except Exception as e:
         logging.error(f"Unexpected error in OBHS notification flow: {e}")
 
-def send_passenger_complain_email(complain_details: Dict):
+def send_passenger_complain_notifications(complain_details: Dict):
     """Send complaint email to war room users with CC to other users"""
     war_room_user_in_depot = []
     s2_admin_users = []
@@ -352,7 +352,7 @@ def send_passenger_complain_email(complain_details: Dict):
             return {"status": "error", "message": str(e)}
         
     except Exception as e:
-        logging.error(f"Error in send_passenger_complain_email: {e}")
+        logging.error(f"Error in send_passenger_complain_notifications: {e}")
         return {"status": "error", "message": str(e)}
     
     
