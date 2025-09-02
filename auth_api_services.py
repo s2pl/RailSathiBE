@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends ,Request,Security, APIRouter
+from fastapi import APIRouter, FastAPI, HTTPException, UploadFile, File, Form, Depends ,Request,Security, APIRouter
 from fastapi.responses import JSONResponse
 from typing import List, Optional
 from pydantic import BaseModel, Field
@@ -25,7 +25,8 @@ from database import get_db_connection, execute_query
 import os
 from dotenv import load_dotenv
 from utils.email_utils import send_plain_mail
-from main import RailSathiComplainResponse
+from auth_models import RailSathiComplainResponse
+from auth_routes import create_access_token, router 
 
 #use router
 router = APIRouter(prefix="/rs_microservice/v2", tags=["Auth Complaint APIs"])

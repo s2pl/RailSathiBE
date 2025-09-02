@@ -877,5 +877,6 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=5002)
 
-import auth_api_services
-app.include_router(auth_api_services.router)
+from fastapi import FastAPI
+from auth_api_services import router as auth_router
+app.include_router(auth_router)
