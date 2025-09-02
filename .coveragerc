@@ -1,0 +1,4 @@
+[run]
+branch = True
+source = RailSathiBE
+concurrency = thread, multiprocessing

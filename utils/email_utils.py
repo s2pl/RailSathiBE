@@ -9,6 +9,8 @@ from database import get_db_connection, execute_query  # Fixed import
 from datetime import datetime
 import pytz
 import json
+from unittest.mock import patch, MagicMock
+import pytest
 from utils.push_notification import send_push_notification
 
 EMAIL_SENDER = conf.MAIL_FROM
