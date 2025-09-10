@@ -26,7 +26,6 @@ import os
 from dotenv import load_dotenv
 from utils.email_utils import send_plain_mail
 from auth_models import RailSathiComplainResponse
-from auth_routes import create_access_token, router 
 
 #use router
 router = APIRouter(prefix="/rs_microservice/v2", tags=["Auth Complaint APIs"])

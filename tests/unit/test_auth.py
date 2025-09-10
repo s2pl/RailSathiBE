@@ -150,7 +150,7 @@ def test_create_complaint_unauthenticated():
 # -------------------- Update Complaint --------------------
 def test_update_complaint_permission_denied(valid_token, monkeypatch):
     monkeypatch.setattr(auth_api_services, "get_complaint_by_id",
-                        lambda cid: {"created_by": "otheruser", "complain_status": "pending", "mobile_number": "123"})
+                        lambda cid: {"created_by": "otheruser"})
     response = client.patch("/rs_microservice/v2/complaint/update/1",
                             headers={"Authorization": f"Bearer {valid_token}"},
                             data={"name": "tester"})

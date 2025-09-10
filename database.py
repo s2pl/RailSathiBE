@@ -28,11 +28,11 @@ def get_db_connection():
     """Get database connection"""
     try:
         connection = psycopg2.connect(
-            host=DB_CONFIG['host'],
-            port=DB_CONFIG['port'],
-            user=DB_CONFIG['user'],
-            password=DB_CONFIG['password'],
-            database=DB_CONFIG['database'],
+            host=os.getenv("POSTGRES_HOST", "localhost"),
+            port=os.getenv("POSTGRES_PORT", 5432),
+            user=os.getenv("POSTGRES_USER", "postgres"),
+            password=os.getenv("POSTGRES_PASSWORD", "postgres"),
+            database=os.getenv("POSTGRES_DB", "railops"),
             cursor_factory=psycopg2.extras.RealDictCursor
         )
         connection.autocommit = False
