@@ -1,9 +1,13 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends ,Request,Security
 from fastapi.responses import JSONResponse
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime, date, time
+from datetime import datetime, date, time , timedelta
+from jose import JWTError, jwt
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from database import get_db_connection, execute_query_one, execute_query
+from passlib.hash import django_pbkdf2_sha256
 import asyncio
 import threading
 import logging
@@ -14,12 +18,14 @@ from services import (
 )
 
 from utils.complaint_enrichment import enrich_complaint_response_and_trigger_email
-
-
+import inspect
+import json
+   
 from database import get_db_connection, execute_query
 import os
 from dotenv import load_dotenv
 from utils.email_utils import send_plain_mail
+
 
 app = FastAPI(
     title="Rail Sathi Complaint API",
@@ -29,6 +35,7 @@ app = FastAPI(
     docs_url="/rs_microservice/docs",             # Add the prefix here
     redoc_url="/rs_microservice/redoc"            # Add the prefix here (optional)
 )
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -869,5 +876,7 @@ Kindly verify the WRUR assignment to the given train depot.
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=5002)
-    
-    
+
+from fastapi import FastAPI
+from auth_api_services import router as auth_router
+app.include_router(auth_router)

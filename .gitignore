@@ -37,3 +37,9 @@ ENV/
 *.log
 logs/
 sa.json
+
+#pytest
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml

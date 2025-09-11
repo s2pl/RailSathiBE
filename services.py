@@ -11,7 +11,7 @@ from PIL import Image
 from moviepy.editor import VideoFileClip
 from urllib.parse import unquote
 from database import get_db_connection, execute_query, execute_query_one
-from utils.email_utils import send_plain_mail, send_passenger_complain_notifications
+from utils.email_utils import send_plain_mail, send_passenger_complain_email
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, File, UploadFile, HTTPException
 import asyncio
@@ -358,7 +358,12 @@ def create_complaint(complaint_data):
             now
         ))
         
-        complain_id = cursor.fetchone()[0]
+        row = cursor.fetchone()
+        if row:
+            complain_id = row["complain_id"] if "complain_id" in row else list(row.values())[0]
+        else:
+            complain_id = None
+
         conn.commit()
         
         # Get the created complaint
@@ -395,7 +400,7 @@ def create_complaint(complaint_data):
                 }
                 
                 logger.info(f"Sending email for complaint {complaint_id} to war room users")
-                send_passenger_complain_notifications(details)
+                send_passenger_complain_email(details)
                 logger.info(f"Email sent successfully for complaint {complaint_id}")
             except Exception as e:
                 logger.error(f"Email thread failure for complaint {complaint_id}: {str(e)}")
@@ -623,7 +628,7 @@ def update_complaint(complain_id: int, update_data: dict):
                 }
                 
                 logger.info(f"Sending passenger complaint email for updated complaint {complaint_id} to war room users")
-                send_passenger_complain_notifications(details)
+                send_passenger_complain_email(details)
                 logger.info(f"Passenger complaint email sent successfully for updated complaint {complaint_id}")
             except Exception as e:
                 logger.error(f"Email thread failure for updated complaint {complaint_id}: {str(e)}")
