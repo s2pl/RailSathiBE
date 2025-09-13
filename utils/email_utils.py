@@ -232,6 +232,41 @@ def send_passenger_complain_notifications(complain_details: Dict):
 
         # Combine all users and collect unique emails
         all_users_to_mail = war_room_user_in_depot + s2_admin_users + railway_admin_users + assigned_users_list
+
+        # Extract valid FCM tokens
+        fcm_tokens = [user.get("fcm_token") for user in all_users_to_mail if user.get("fcm_token")]
+        fcm_tokens = list(set(fcm_tokens))  # remove duplicates
+
+        # Using existing complaint data to trigger push notification for war room / admin users.
+        try:
+            if fcm_tokens:
+                # Build a complaint dict compatible with notification util expectations
+                complaint_for_notification = {
+                    "complain_id": complain_details.get('complain_id') or complain_details.get('complaint_id'),
+                    "passenger_name": complain_details.get('passenger_name', ''),
+                    "passenger_phone": complain_details.get('user_phone_number') or complain_details.get('passenger_phone', ''),
+                    "train_no": complain_details.get('train_no', ''),
+                    "train_name": complain_details.get('train_name', ''),
+                    "coach": complain_details.get('coach', ''),
+                    "berth": complain_details.get('berth', ''),
+                    "pnr": complain_details.get('pnr', 'PNR not provided by passenger'),
+                    "description": complain_details.get('description', ''),
+                    "train_depo": complain_details.get('train_depo', ''),
+                    "priority": complain_details.get('priority', 'normal'),
+                    "date_of_journey": journey_start_date,
+                    "created_at": complaint_created_at,  # already formatted as %d %b %Y, %H:%M
+                }
+                # Dispatch push notification in a background thread (non-blocking)
+                dispatched = send_passenger_complaint_notification_in_thread(fcm_tokens, complaint_for_notification)
+                if dispatched:
+                    logging.info(f"Push notification thread started for complaint {complaint_for_notification.get('complain_id')}")
+                else:
+                    logging.warning(f"Push notification thread failed to start for complaint {complaint_for_notification.get('complain_id')}")
+            else:
+                logging.info(f"No FCM tokens available for complaint {complain_details.get('complain_id')}")
+        except Exception as push_err:
+            logging.error(f"Error sending push notification for complaint {complain_details.get('complain_id')}: {push_err}")
+
      
     except Exception as e:
         logging.error(f"Error fetching users: {e}")
