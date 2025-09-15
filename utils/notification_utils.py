@@ -92,11 +92,27 @@ def build_passenger_complaint_notification(
         "screen": "complaint_details",
     }
 
+    def _ensure_all_strings(obj: Any) -> Any:
+        """Recursively convert all non-dict/list primitives to strings.
+        - None -> ""
+        - Dict keys forced to str
+        - Lists values converted element-wise
+        """
+        if isinstance(obj, dict):
+            return {str(k): ("" if v is None else str(v)) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return ["" if v is None else str(v) for v in obj]
+        return "" if obj is None else str(obj)
+
+    # Ensure tokens list elements are strings & non-empty
+    safe_tokens = [str(t) for t in tokens if t]
+    normalized_data = _ensure_all_strings(data_payload)
+
     return {
-        "tokens": tokens,
-        "title": title,
-        "body": body,
-        "data": data_payload,
+        "tokens": safe_tokens,
+        "title": _ensure_all_strings(title),
+        "body": _ensure_all_strings(body),
+        "data": normalized_data,
         "notification_type": "default"
     }
 

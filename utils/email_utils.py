@@ -10,6 +10,7 @@ from datetime import datetime
 import pytz
 import json
 from utils.push_notification import send_push_notification
+from utils.notification_utils import send_passenger_complaint_notification_in_thread
 
 EMAIL_SENDER = conf.MAIL_FROM
 
@@ -226,12 +227,19 @@ def send_passenger_complain_notifications(complain_details: Dict):
                 except (json.JSONDecodeError, TypeError) as json_error:
                     logging.warning(f"JSON parsing error for user {user.get('id')}: {json_error}")
                     continue
-        
+
+
         # Fetching and storing the OBHS users fcm tokens
         users_tokens = [user["fcm_token"] for user in assigned_users_list if user.get("fcm_token")]
+        
 
         # Combine all users and collect unique emails
         all_users_to_mail = war_room_user_in_depot + s2_admin_users + railway_admin_users + assigned_users_list
+
+        print(f"Total users to mail: {len(all_users_to_mail)}")
+
+        # for user in all_users_to_mail:
+        #     print("User:", user.get("email"), "| FCM Token:", user.get("fcm_token"))
 
         # Extract valid FCM tokens
         fcm_tokens = [user.get("fcm_token") for user in all_users_to_mail if user.get("fcm_token")]
@@ -257,6 +265,8 @@ def send_passenger_complain_notifications(complain_details: Dict):
                     "created_at": complaint_created_at,  # already formatted as %d %b %Y, %H:%M
                 }
                 # Dispatch push notification in a background thread (non-blocking)
+                logging.debug(f"[Push][Build] Complaint notification payload: {json.dumps(complaint_for_notification, indent=2, ensure_ascii=False)}")
+                print("[DEBUG] Push Notification Payload =>", complaint_for_notification)
                 dispatched = send_passenger_complaint_notification_in_thread(fcm_tokens, complaint_for_notification)
                 if dispatched:
                     logging.info(f"Push notification thread started for complaint {complaint_for_notification.get('complain_id')}")
