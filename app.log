@@ -1,0 +1,925 @@
+2025-09-15 13:01:09,617 - INFO - uvicorn.error - Will watch for changes in these directories: ['c:\\s2\\RailSathiBE']
+2025-09-15 13:01:09,617 - INFO - uvicorn.error - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-09-15 13:01:09,617 - INFO - uvicorn.error - Started reloader process [12280] using StatReload
+2025-09-15 13:01:12,283 - INFO - uvicorn.error - Started server process [17032]
+2025-09-15 13:01:12,283 - INFO - uvicorn.error - Waiting for application startup.
+2025-09-15 13:01:12,283 - INFO - uvicorn.error - Application startup complete.
+2025-09-15 13:01:50,162 - INFO - uvicorn.access - 127.0.0.1:63037 - "GET /rs_microservice/docs HTTP/1.1" 200
+2025-09-15 13:02:08,852 - INFO - uvicorn.access - 127.0.0.1:63037 - "GET /rs_microservice/openapi.json HTTP/1.1" 200
+2025-09-15 13:03:57,776 - INFO - uvicorn.access - 127.0.0.1:51572 - "POST /rs_microservice/v2/token HTTP/1.1" 200
+2025-09-15 13:04:20,982 - INFO - uvicorn.access - 127.0.0.1:60459 - "GET /rs_microservice HTTP/1.1" 200
+2025-09-15 13:04:51,602 - ERROR - main - Error getting complaint 544: 1 validation error for RailSathiComplainResponse
+data.customer_care
+  Field required [type=missing, input_value={'complain_id': 544, 'pnr...mplain_media_files': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+2025-09-15 13:04:51,602 - INFO - uvicorn.access - 127.0.0.1:52838 - "GET /rs_microservice/complaint/get/544 HTTP/1.1" 500
+2025-09-15 14:10:57,760 - ERROR - main - Error getting complaint 544: 1 validation error for RailSathiComplainResponse
+data.customer_care
+  Field required [type=missing, input_value={'complain_id': 544, 'pnr...mplain_media_files': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+2025-09-15 14:10:57,762 - INFO - uvicorn.access - 127.0.0.1:53329 - "GET /rs_microservice/complaint/get/544 HTTP/1.1" 500
+2025-09-15 14:11:04,586 - INFO - uvicorn.access - 127.0.0.1:62457 - "GET /rs_microservice HTTP/1.1" 200
+2025-09-15 14:11:09,534 - ERROR - main - Error getting complaint 544: 1 validation error for RailSathiComplainResponse
+data.customer_care
+  Field required [type=missing, input_value={'complain_id': 544, 'pnr...mplain_media_files': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+2025-09-15 14:11:09,536 - INFO - uvicorn.access - 127.0.0.1:62457 - "GET /rs_microservice/complaint/get/544 HTTP/1.1" 500
+2025-09-15 14:11:34,529 - INFO - uvicorn.access - 127.0.0.1:51647 - "GET /rs_microservice/docs HTTP/1.1" 200
+2025-09-15 14:11:44,317 - INFO - uvicorn.access - 127.0.0.1:51647 - "GET /rs_microservice/openapi.json HTTP/1.1" 200
+2025-09-15 14:11:44,382 - INFO - uvicorn.error - Shutting down
+2025-09-15 14:11:44,492 - INFO - uvicorn.error - Waiting for application shutdown.
+2025-09-15 14:11:44,493 - INFO - uvicorn.error - Application shutdown complete.
+2025-09-15 14:11:44,494 - INFO - uvicorn.error - Finished server process [17032]
+2025-09-15 14:11:44,812 - INFO - uvicorn.error - Stopping reloader process [12280]
+2025-09-15 14:14:29,693 - INFO - uvicorn.error - Will watch for changes in these directories: ['c:\\s2\\RailSathiBE']
+2025-09-15 14:14:29,693 - INFO - uvicorn.error - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-09-15 14:14:29,709 - INFO - uvicorn.error - Started reloader process [1908] using StatReload
+2025-09-15 14:14:32,074 - INFO - uvicorn.error - Started server process [11400]
+2025-09-15 14:14:32,074 - INFO - uvicorn.error - Waiting for application startup.
+2025-09-15 14:14:32,074 - INFO - uvicorn.error - Application startup complete.
+2025-09-15 14:14:34,818 - INFO - uvicorn.access - 127.0.0.1:61857 - "GET /rs_microservice/docs HTTP/1.1" 200
+2025-09-15 14:14:35,017 - INFO - uvicorn.access - 127.0.0.1:61857 - "GET /rs_microservice/openapi.json HTTP/1.1" 200
+2025-09-15 14:14:50,471 - INFO - uvicorn.access - 127.0.0.1:52078 - "GET /rs_microservice HTTP/1.1" 200
+2025-09-15 14:14:53,915 - INFO - uvicorn.access - 127.0.0.1:52078 - "GET /rs_microservice HTTP/1.1" 200
+2025-09-15 14:15:23,943 - ERROR - main - Error getting complaint 546: 404: Complaint not found
+2025-09-15 14:15:23,948 - INFO - uvicorn.access - 127.0.0.1:60025 - "GET /rs_microservice/complaint/get/546 HTTP/1.1" 500
+2025-09-15 14:15:27,863 - ERROR - main - Error getting complaint 544: 1 validation error for RailSathiComplainResponse
+data.customer_care
+  Field required [type=missing, input_value={'complain_id': 544, 'pnr...mplain_media_files': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+2025-09-15 14:15:27,870 - INFO - uvicorn.access - 127.0.0.1:60025 - "GET /rs_microservice/complaint/get/544 HTTP/1.1" 500
+2025-09-15 14:23:43,829 - ERROR - main - Error getting complaint 549: 1 validation error for RailSathiComplainResponse
+data.customer_care
+  Field required [type=missing, input_value={'complain_id': 549, 'pnr...mplain_media_files': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+2025-09-15 14:23:43,834 - INFO - uvicorn.access - 127.0.0.1:57399 - "GET /rs_microservice/complaint/get/549 HTTP/1.1" 500
+2025-09-15 14:23:43,911 - INFO - uvicorn.access - 127.0.0.1:52462 - "GET /rs_microservice/docs HTTP/1.1" 200
+2025-09-15 14:23:43,999 - ERROR - main - Error getting complaint 544: 1 validation error for RailSathiComplainResponse
+data.customer_care
+  Field required [type=missing, input_value={'complain_id': 544, 'pnr...mplain_media_files': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+2025-09-15 14:23:44,001 - INFO - uvicorn.access - 127.0.0.1:60270 - "GET /rs_microservice/complaint/get/544 HTTP/1.1" 500
+2025-09-15 14:23:44,096 - ERROR - main - Error getting complaint 549: 1 validation error for RailSathiComplainResponse
+data.customer_care
+  Field required [type=missing, input_value={'complain_id': 549, 'pnr...mplain_media_files': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+2025-09-15 14:23:44,098 - INFO - uvicorn.access - 127.0.0.1:62736 - "GET /rs_microservice/complaint/get/549 HTTP/1.1" 500
+2025-09-15 14:23:44,117 - INFO - uvicorn.access - 127.0.0.1:52462 - "GET /rs_microservice/openapi.json HTTP/1.1" 200
+2025-09-15 14:23:47,395 - INFO - uvicorn.error - Shutting down
+2025-09-15 14:23:47,507 - INFO - uvicorn.error - Finished server process [11400]
+2025-09-15 14:23:47,618 - ERROR - uvicorn.error - Traceback (most recent call last):
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\asyncio\runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 633, in run_until_complete
+    self.run_forever()
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 600, in run_forever
+    self._run_once()
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 1896, in _run_once
+    handle._run()
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\asyncio\events.py", line 80, in _run
+    self._context.run(self._callback, *self._args)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\uvicorn\server.py", line 70, in serve
+    with self.capture_signals():
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\contextlib.py", line 142, in __exit__
+    next(self.gen)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\uvicorn\server.py", line 331, in capture_signals
+    signal.raise_signal(captured_signal)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\routing.py", line 701, in lifespan
+    await receive()
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\uvicorn\lifespan\on.py", line 137, in receive
+    return await self.receive_queue.get()
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\asyncio\queues.py", line 159, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+2025-09-15 14:23:47,871 - INFO - uvicorn.error - Stopping reloader process [1908]
+2025-09-15 14:23:52,988 - INFO - uvicorn.error - Will watch for changes in these directories: ['c:\\s2\\RailSathiBE']
+2025-09-15 14:23:52,988 - INFO - uvicorn.error - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-09-15 14:23:52,988 - INFO - uvicorn.error - Started reloader process [11408] using StatReload
+2025-09-15 14:23:56,858 - INFO - uvicorn.error - Started server process [13716]
+2025-09-15 14:23:56,858 - INFO - uvicorn.error - Waiting for application startup.
+2025-09-15 14:23:56,858 - INFO - uvicorn.error - Application startup complete.
+2025-09-15 14:23:57,963 - INFO - uvicorn.access - 127.0.0.1:54153 - "GET /rs_microservice/docs HTTP/1.1" 200
+2025-09-15 14:23:58,044 - INFO - uvicorn.access - 127.0.0.1:54153 - "GET /rs_microservice/openapi.json HTTP/1.1" 200
+2025-09-15 14:24:01,391 - INFO - uvicorn.access - 127.0.0.1:54153 - "GET /rs_microservice HTTP/1.1" 200
+2025-09-15 14:24:10,127 - ERROR - main - Error getting complaint 544: 1 validation error for RailSathiComplainResponse
+data.customer_care
+  Field required [type=missing, input_value={'complain_id': 544, 'pnr...mplain_media_files': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+2025-09-15 14:24:10,144 - INFO - uvicorn.access - 127.0.0.1:57855 - "GET /rs_microservice/complaint/get/544 HTTP/1.1" 500
+2025-09-15 14:24:28,060 - ERROR - main - Error getting complaint 549: 1 validation error for RailSathiComplainResponse
+data.customer_care
+  Field required [type=missing, input_value={'complain_id': 549, 'pnr...mplain_media_files': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+2025-09-15 14:24:28,077 - INFO - uvicorn.access - 127.0.0.1:63297 - "GET /rs_microservice/complaint/get/549 HTTP/1.1" 500
+2025-09-15 14:27:24,495 - ERROR - main - Error getting complaint 549: 1 validation error for RailSathiComplainResponse
+data.customer_care
+  Field required [type=missing, input_value={'complain_id': 549, 'pnr...mplain_media_files': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+2025-09-15 14:27:24,495 - INFO - uvicorn.access - 127.0.0.1:60529 - "GET /rs_microservice/complaint/get/549 HTTP/1.1" 500
+2025-09-15 14:27:30,444 - ERROR - main - Error getting complaint 549: 1 validation error for RailSathiComplainResponse
+data.customer_care
+  Field required [type=missing, input_value={'complain_id': 549, 'pnr...mplain_media_files': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+2025-09-15 14:27:30,444 - INFO - uvicorn.access - 127.0.0.1:52470 - "GET /rs_microservice/complaint/get/549 HTTP/1.1" 500
+2025-09-15 14:27:48,786 - ERROR - main - Error getting complaint 544: 1 validation error for RailSathiComplainResponse
+data.customer_care
+  Field required [type=missing, input_value={'complain_id': 544, 'pnr...mplain_media_files': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+2025-09-15 14:27:48,792 - INFO - uvicorn.access - 127.0.0.1:59541 - "GET /rs_microservice/complaint/get/544 HTTP/1.1" 500
+2025-09-15 14:28:05,526 - INFO - uvicorn.access - 127.0.0.1:54237 - "GET /rs_microservice/complaint/get/date/2025-08-22?mobile_number=8517078080 HTTP/1.1" 200
+2025-09-15 14:28:47,477 - INFO - uvicorn.access - 127.0.0.1:57559 - "POST /rs_microservice/complaint/add/ HTTP/1.1" 422
+2025-09-15 14:29:20,694 - ERROR - database - Query execution failed: invalid input syntax for type integer: "string"
+LINE 3:                 WHERE train_no = 'string' LIMIT 1
+                                         ^
+
+2025-09-15 14:29:20,694 - ERROR - database - Query: 
+                SELECT "Depot" FROM trains_traindetails 
+                WHERE train_no = 'string' LIMIT 1
+            
+2025-09-15 14:29:20,694 - ERROR - database - Params: None
+2025-09-15 14:29:20,694 - ERROR - main - Error fetching depot: invalid input syntax for type integer: "string"
+LINE 3:                 WHERE train_no = 'string' LIMIT 1
+                                         ^
+
+2025-09-15 14:30:21,112 - INFO - root - Email sent successfully to: contact@suvidhaen.com
+2025-09-15 14:30:21,112 - INFO - root - War room alert email sent successfully for PNR: string
+2025-09-15 14:30:21,177 - ERROR - main - Error creating complaint: insert or update on table "rail_sathi_railsathicomplain" violates foreign key constraint "rail_sathi_railsathi_train_id_f2692b50_fk_trains_tr"
+DETAIL:  Key (train_id)=(0) is not present in table "trains_traindetails".
+
+2025-09-15 14:30:21,184 - ERROR - main - Full traceback: Traceback (most recent call last):
+  File "c:\s2\RailSathiBE\main.py", line 357, in create_complaint_endpoint_threaded
+    complaint = create_complaint(complaint_data)
+  File "c:\s2\RailSathiBE\services.py", line 367, in create_complaint
+    conn.commit()
+psycopg2.errors.ForeignKeyViolation: insert or update on table "rail_sathi_railsathicomplain" violates foreign key constraint "rail_sathi_railsathi_train_id_f2692b50_fk_trains_tr"
+DETAIL:  Key (train_id)=(0) is not present in table "trains_traindetails".
+
+
+2025-09-15 14:30:21,184 - INFO - uvicorn.access - 127.0.0.1:53460 - "POST /rs_microservice/complaint/add/ HTTP/1.1" 500
+2025-09-15 14:30:53,211 - ERROR - database - Query execution failed: invalid input syntax for type integer: "string"
+LINE 3:                 WHERE train_no = 'string' LIMIT 1
+                                         ^
+
+2025-09-15 14:30:53,224 - ERROR - database - Query: 
+                SELECT "Depot" FROM trains_traindetails 
+                WHERE train_no = 'string' LIMIT 1
+            
+2025-09-15 14:30:53,227 - ERROR - database - Params: None
+2025-09-15 14:30:53,227 - ERROR - main - Error fetching depot: invalid input syntax for type integer: "string"
+LINE 3:                 WHERE train_no = 'string' LIMIT 1
+                                         ^
+
+2025-09-15 14:31:53,425 - INFO - root - Email sent successfully to: contact@suvidhaen.com
+2025-09-15 14:31:53,425 - INFO - root - War room alert email sent successfully for PNR: string
+2025-09-15 14:31:53,644 - INFO - services - Starting email thread for complaint 551
+2025-09-15 14:31:53,644 - INFO - services - Email thread started for complaint 551
+2025-09-15 14:31:53,644 - INFO - services - Email thread started with name EmailThread-551
+2025-09-15 14:31:53,644 - INFO - services - Starting file upload for complaint 551, file: Screenshot 2025-08-14 184626.png
+2025-09-15 14:31:53,657 - INFO - services - File content size: 531409 bytes
+2025-09-15 14:31:53,657 - INFO - services - Processing file: Screenshot 2025-08-14 184626.png, content_type: image/png
+2025-09-15 14:31:53,657 - INFO - services - Uploading image file: Screenshot 2025-08-14 184626.png
+2025-09-15 14:31:53,703 - ERROR - database - Query execution failed: invalid input syntax for type integer: "string"
+LINE 1: SELECT * FROM trains_traindetails WHERE train_no = 'string'
+                                                           ^
+
+2025-09-15 14:31:53,703 - ERROR - database - Query: SELECT * FROM trains_traindetails WHERE train_no = %s
+2025-09-15 14:31:53,703 - ERROR - database - Params: ('string',)
+2025-09-15 14:31:53,703 - ERROR - services - Email thread failure for complaint 551: invalid input syntax for type integer: "string"
+LINE 1: SELECT * FROM trains_traindetails WHERE train_no = 'string'
+                                                           ^
+
+2025-09-15 14:32:05,828 - ERROR - services - Error in upload_file_thread for file Screenshot 2025-08-14 184626.png: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+2025-09-15 14:32:05,831 - ERROR - services - Full traceback: Traceback (most recent call last):
+  File "c:\s2\RailSathiBE\services.py", line 162, in upload_file_thread
+    uploaded_url = process_media_file_upload(file_content, ext, complain_id, media_type)
+  File "c:\s2\RailSathiBE\services.py", line 123, in process_media_file_upload
+    raise e
+  File "c:\s2\RailSathiBE\services.py", line 61, in process_media_file_upload
+    client = get_gcs_client()
+  File "c:\s2\RailSathiBE\services.py", line 34, in get_gcs_client
+    client = storage.Client(project=PROJECT_ID)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\storage\client.py", line 247, in __init__
+    super(Client, self).__init__(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\client\__init__.py", line 339, in __init__
+    Client.__init__(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\client\__init__.py", line 196, in __init__
+    credentials, _ = google.auth.default(scopes=scopes)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\auth\_default.py", line 685, in default
+    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
+google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+
+2025-09-15 14:32:06,898 - INFO - uvicorn.access - 127.0.0.1:49671 - "POST /rs_microservice/complaint/add/ HTTP/1.1" 200
+2025-09-15 14:45:22,389 - ERROR - main - Error updating complaint 551: invalid input syntax for type date: "string"
+LINE 3: ... complain_description = 'string', complain_date = 'string', ...
+                                                             ^
+
+2025-09-15 14:45:22,393 - ERROR - main - Traceback (most recent call last):
+  File "c:\s2\RailSathiBE\main.py", line 473, in update_complaint_endpoint
+    update_complaint(complain_id, update_data)
+  File "c:\s2\RailSathiBE\services.py", line 574, in update_complaint
+    cursor.execute(query, tuple(values))
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\psycopg2\extras.py", line 236, in execute
+    return super().execute(query, vars)
+psycopg2.errors.InvalidDatetimeFormat: invalid input syntax for type date: "string"
+LINE 3: ... complain_description = 'string', complain_date = 'string', ...
+                                                             ^
+
+
+2025-09-15 14:45:22,395 - INFO - uvicorn.access - 127.0.0.1:63012 - "PATCH /rs_microservice/complaint/update/551 HTTP/1.1" 500
+2025-09-15 14:45:44,545 - ERROR - main - Error updating complaint 551: invalid input syntax for type date: "string"
+LINE 3: ... complain_description = 'string', complain_date = 'string', ...
+                                                             ^
+
+2025-09-15 14:45:44,545 - ERROR - main - Traceback (most recent call last):
+  File "c:\s2\RailSathiBE\main.py", line 473, in update_complaint_endpoint
+    update_complaint(complain_id, update_data)
+  File "c:\s2\RailSathiBE\services.py", line 574, in update_complaint
+    cursor.execute(query, tuple(values))
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\psycopg2\extras.py", line 236, in execute
+    return super().execute(query, vars)
+psycopg2.errors.InvalidDatetimeFormat: invalid input syntax for type date: "string"
+LINE 3: ... complain_description = 'string', complain_date = 'string', ...
+                                                             ^
+
+
+2025-09-15 14:45:44,549 - INFO - uvicorn.access - 127.0.0.1:60821 - "PATCH /rs_microservice/complaint/update/551 HTTP/1.1" 500
+2025-09-15 14:46:46,094 - INFO - services - Starting passenger complaint email thread for updated complaint 551
+2025-09-15 14:46:46,094 - INFO - services - Email thread started for updated complaint 551
+2025-09-15 14:46:46,094 - INFO - services - Passenger complaint email thread started with name EmailThread-Update-551
+2025-09-15 14:46:46,109 - INFO - services - Starting file upload for complaint 551, file: Screenshot 2025-08-14 184626.png
+2025-09-15 14:46:46,111 - INFO - services - File content size: 531409 bytes
+2025-09-15 14:46:46,111 - INFO - services - Processing file: Screenshot 2025-08-14 184626.png, content_type: image/png
+2025-09-15 14:46:46,112 - INFO - services - Uploading image file: Screenshot 2025-08-14 184626.png
+2025-09-15 14:46:46,177 - ERROR - database - Query execution failed: invalid input syntax for type integer: "string"
+LINE 1: SELECT * FROM trains_traindetails WHERE train_no = 'string'
+                                                           ^
+
+2025-09-15 14:46:46,177 - ERROR - database - Query: SELECT * FROM trains_traindetails WHERE train_no = %s
+2025-09-15 14:46:46,179 - ERROR - database - Params: ('string',)
+2025-09-15 14:46:46,179 - ERROR - services - Email thread failure for updated complaint 551: invalid input syntax for type integer: "string"
+LINE 1: SELECT * FROM trains_traindetails WHERE train_no = 'string'
+                                                           ^
+
+2025-09-15 14:46:58,138 - ERROR - services - Error in upload_file_thread for file Screenshot 2025-08-14 184626.png: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+2025-09-15 14:46:58,138 - ERROR - services - Full traceback: Traceback (most recent call last):
+  File "c:\s2\RailSathiBE\services.py", line 162, in upload_file_thread
+    uploaded_url = process_media_file_upload(file_content, ext, complain_id, media_type)
+  File "c:\s2\RailSathiBE\services.py", line 123, in process_media_file_upload
+    raise e
+  File "c:\s2\RailSathiBE\services.py", line 61, in process_media_file_upload
+    client = get_gcs_client()
+  File "c:\s2\RailSathiBE\services.py", line 34, in get_gcs_client
+    client = storage.Client(project=PROJECT_ID)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\storage\client.py", line 247, in __init__
+    super(Client, self).__init__(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\client\__init__.py", line 339, in __init__
+    Client.__init__(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\client\__init__.py", line 196, in __init__
+    credentials, _ = google.auth.default(scopes=scopes)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\auth\_default.py", line 685, in default
+    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
+google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+
+2025-09-15 14:46:59,194 - ERROR - database - Query execution failed: invalid input syntax for type integer: "string"
+LINE 3:             WHERE train_no = 'string' LIMIT 1
+                                     ^
+
+2025-09-15 14:46:59,194 - ERROR - database - Query: 
+            SELECT "Depot" FROM trains_traindetails 
+            WHERE train_no = 'string' LIMIT 1
+        
+2025-09-15 14:46:59,194 - ERROR - database - Params: None
+2025-09-15 14:46:59,194 - ERROR - main - Error fetching depot: invalid input syntax for type integer: "string"
+LINE 3:             WHERE train_no = 'string' LIMIT 1
+                                     ^
+
+2025-09-15 14:47:59,352 - INFO - root - Email sent successfully to: contact@suvidhaen.com
+2025-09-15 14:47:59,526 - INFO - uvicorn.access - 127.0.0.1:50315 - "PATCH /rs_microservice/complaint/update/551 HTTP/1.1" 200
+2025-09-15 14:49:02,512 - INFO - services - Starting passenger complaint email thread for updated complaint 551
+2025-09-15 14:49:02,512 - INFO - services - Email thread started for updated complaint 551
+2025-09-15 14:49:02,526 - INFO - services - Passenger complaint email thread started with name EmailThread-Update-551
+2025-09-15 14:49:02,528 - INFO - services - Starting file upload for complaint 551, file: Screenshot 2025-08-23 175143.png
+2025-09-15 14:49:02,530 - INFO - services - File content size: 83276 bytes
+2025-09-15 14:49:02,530 - INFO - services - Processing file: Screenshot 2025-08-23 175143.png, content_type: image/png
+2025-09-15 14:49:02,530 - INFO - services - Uploading image file: Screenshot 2025-08-23 175143.png
+2025-09-15 14:49:02,561 - ERROR - database - Query execution failed: invalid input syntax for type integer: "string"
+LINE 1: SELECT * FROM trains_traindetails WHERE train_no = 'string'
+                                                           ^
+
+2025-09-15 14:49:02,561 - ERROR - database - Query: SELECT * FROM trains_traindetails WHERE train_no = %s
+2025-09-15 14:49:02,576 - ERROR - database - Params: ('string',)
+2025-09-15 14:49:02,576 - ERROR - services - Email thread failure for updated complaint 551: invalid input syntax for type integer: "string"
+LINE 1: SELECT * FROM trains_traindetails WHERE train_no = 'string'
+                                                           ^
+
+2025-09-15 14:49:14,772 - ERROR - services - Error in upload_file_thread for file Screenshot 2025-08-23 175143.png: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+2025-09-15 14:49:14,780 - ERROR - services - Full traceback: Traceback (most recent call last):
+  File "c:\s2\RailSathiBE\services.py", line 162, in upload_file_thread
+    uploaded_url = process_media_file_upload(file_content, ext, complain_id, media_type)
+  File "c:\s2\RailSathiBE\services.py", line 123, in process_media_file_upload
+    raise e
+  File "c:\s2\RailSathiBE\services.py", line 61, in process_media_file_upload
+    client = get_gcs_client()
+  File "c:\s2\RailSathiBE\services.py", line 34, in get_gcs_client
+    client = storage.Client(project=PROJECT_ID)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\storage\client.py", line 247, in __init__
+    super(Client, self).__init__(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\client\__init__.py", line 339, in __init__
+    Client.__init__(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\client\__init__.py", line 196, in __init__
+    credentials, _ = google.auth.default(scopes=scopes)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\auth\_default.py", line 685, in default
+    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
+google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+
+2025-09-15 14:49:15,827 - INFO - uvicorn.access - 127.0.0.1:60109 - "PUT /rs_microservice/complaint/update/551 HTTP/1.1" 500
+2025-09-15 14:49:15,827 - ERROR - uvicorn.error - Exception in ASGI application
+Traceback (most recent call last):
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\uvicorn\protocols\http\h11_impl.py", line 403, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\uvicorn\middleware\proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\fastapi\applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\applications.py", line 113, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\middleware\cors.py", line 93, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\middleware\cors.py", line 144, in simple_response
+    await self.app(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\routing.py", line 75, in app
+    response = await f(request)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\fastapi\routing.py", line 328, in app
+    content = await serialize_response(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\fastapi\routing.py", line 177, in serialize_response
+    raise ResponseValidationError(
+fastapi.exceptions.ResponseValidationError: 1 validation errors:
+  {'type': 'missing', 'loc': ('response', 'data', 'customer_care'), 'msg': 'Field required', 'input': {'complain_id': 551, 'pnr_number': 'string', 'is_pnr_validated': 'not-attempted', 'name': 'string', 'mobile_number': 'string', 'complain_type': 'string', 'complain_description': 'string', 'complain_date': '2025-08-22', 'complain_status': 'pending', 'coach': 'string', 'berth_no': 0, 'created_at': '2025-09-15T14:31:53.465706+05:30', 'updated_at': '2025-09-15T14:49:02.462976+05:30', 'created_by': 'string', 'train_id': 123, 'updated_by': 'string', 'train_name': None, 'train_number': 'string', 'submission_status': 'submitted', 'train_no': None, 'train_depot': None, 'rail_sathi_complain_media_files': []}}
+
+2025-09-15 14:50:23,457 - INFO - services - Starting passenger complaint email thread for updated complaint 551
+2025-09-15 14:50:23,457 - INFO - services - Email thread started for updated complaint 551
+2025-09-15 14:50:23,458 - INFO - services - Passenger complaint email thread started with name EmailThread-Update-551
+2025-09-15 14:50:23,460 - INFO - services - Starting file upload for complaint 551, file: Screenshot 2025-08-23 175143.png
+2025-09-15 14:50:23,460 - INFO - services - File content size: 83276 bytes
+2025-09-15 14:50:23,460 - INFO - services - Processing file: Screenshot 2025-08-23 175143.png, content_type: image/png
+2025-09-15 14:50:23,460 - INFO - services - Uploading image file: Screenshot 2025-08-23 175143.png
+2025-09-15 14:50:23,633 - ERROR - database - Query execution failed: invalid input syntax for type integer: "string"
+LINE 1: SELECT * FROM trains_traindetails WHERE train_no = 'string'
+                                                           ^
+
+2025-09-15 14:50:23,633 - ERROR - database - Query: SELECT * FROM trains_traindetails WHERE train_no = %s
+2025-09-15 14:50:23,640 - ERROR - database - Params: ('string',)
+2025-09-15 14:50:23,640 - ERROR - services - Email thread failure for updated complaint 551: invalid input syntax for type integer: "string"
+LINE 1: SELECT * FROM trains_traindetails WHERE train_no = 'string'
+                                                           ^
+
+2025-09-15 14:50:35,577 - ERROR - services - Error in upload_file_thread for file Screenshot 2025-08-23 175143.png: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+2025-09-15 14:50:35,577 - ERROR - services - Full traceback: Traceback (most recent call last):
+  File "c:\s2\RailSathiBE\services.py", line 162, in upload_file_thread
+    uploaded_url = process_media_file_upload(file_content, ext, complain_id, media_type)
+  File "c:\s2\RailSathiBE\services.py", line 123, in process_media_file_upload
+    raise e
+  File "c:\s2\RailSathiBE\services.py", line 61, in process_media_file_upload
+    client = get_gcs_client()
+  File "c:\s2\RailSathiBE\services.py", line 34, in get_gcs_client
+    client = storage.Client(project=PROJECT_ID)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\storage\client.py", line 247, in __init__
+    super(Client, self).__init__(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\client\__init__.py", line 339, in __init__
+    Client.__init__(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\client\__init__.py", line 196, in __init__
+    credentials, _ = google.auth.default(scopes=scopes)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\auth\_default.py", line 685, in default
+    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
+google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+
+2025-09-15 14:50:36,644 - INFO - uvicorn.access - 127.0.0.1:64215 - "PUT /rs_microservice/complaint/update/551 HTTP/1.1" 500
+2025-09-15 14:50:36,644 - ERROR - uvicorn.error - Exception in ASGI application
+Traceback (most recent call last):
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\uvicorn\protocols\http\h11_impl.py", line 403, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\uvicorn\middleware\proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\fastapi\applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\applications.py", line 113, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\middleware\cors.py", line 93, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\middleware\cors.py", line 144, in simple_response
+    await self.app(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\routing.py", line 75, in app
+    response = await f(request)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\fastapi\routing.py", line 328, in app
+    content = await serialize_response(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\fastapi\routing.py", line 177, in serialize_response
+    raise ResponseValidationError(
+fastapi.exceptions.ResponseValidationError: 1 validation errors:
+  {'type': 'missing', 'loc': ('response', 'data', 'customer_care'), 'msg': 'Field required', 'input': {'complain_id': 551, 'pnr_number': '2211331122', 'is_pnr_validated': 'not-attempted', 'name': 'string', 'mobile_number': 'string', 'complain_type': 'cleaning', 'complain_description': 'string', 'complain_date': '2025-08-22', 'complain_status': 'pending', 'coach': 'S2', 'berth_no': 10, 'created_at': '2025-09-15T14:31:53.465706+05:30', 'updated_at': '2025-09-15T14:50:23.372121+05:30', 'created_by': 'string', 'train_id': 123, 'updated_by': 'string', 'train_name': None, 'train_number': 'string', 'submission_status': 'submitted', 'train_no': None, 'train_depot': None, 'rail_sathi_complain_media_files': []}}
+
+2025-09-15 14:53:55,496 - INFO - uvicorn.access - 127.0.0.1:60657 - "PUT /rs_microservice/complaint/update/551 HTTP/1.1" 403
+2025-09-15 14:55:09,476 - INFO - services - Starting passenger complaint email thread for updated complaint 551
+2025-09-15 14:55:09,477 - INFO - services - Email thread started for updated complaint 551
+2025-09-15 14:55:09,477 - INFO - services - Passenger complaint email thread started with name EmailThread-Update-551
+2025-09-15 14:55:09,477 - INFO - services - Starting file upload for complaint 551, file: Screenshot 2025-08-23 175143.png
+2025-09-15 14:55:09,477 - INFO - services - File content size: 83276 bytes
+2025-09-15 14:55:09,477 - INFO - services - Processing file: Screenshot 2025-08-23 175143.png, content_type: image/png
+2025-09-15 14:55:09,487 - INFO - services - Uploading image file: Screenshot 2025-08-23 175143.png
+2025-09-15 14:55:09,527 - INFO - services - Sending passenger complaint email for updated complaint 551 to war room users
+2025-09-15 14:55:09,993 - INFO - root - No users found for depot  and train 12256 in complaint 551
+2025-09-15 14:55:09,993 - INFO - services - Passenger complaint email sent successfully for updated complaint 551
+2025-09-15 14:55:21,662 - ERROR - services - Error in upload_file_thread for file Screenshot 2025-08-23 175143.png: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+2025-09-15 14:55:21,665 - ERROR - services - Full traceback: Traceback (most recent call last):
+  File "c:\s2\RailSathiBE\services.py", line 162, in upload_file_thread
+    uploaded_url = process_media_file_upload(file_content, ext, complain_id, media_type)
+  File "c:\s2\RailSathiBE\services.py", line 123, in process_media_file_upload
+    raise e
+  File "c:\s2\RailSathiBE\services.py", line 61, in process_media_file_upload
+    client = get_gcs_client()
+  File "c:\s2\RailSathiBE\services.py", line 34, in get_gcs_client
+    client = storage.Client(project=PROJECT_ID)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\storage\client.py", line 247, in __init__
+    super(Client, self).__init__(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\client\__init__.py", line 339, in __init__
+    Client.__init__(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\client\__init__.py", line 196, in __init__
+    credentials, _ = google.auth.default(scopes=scopes)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\auth\_default.py", line 685, in default
+    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
+google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+
+2025-09-15 14:55:22,727 - INFO - uvicorn.access - 127.0.0.1:63522 - "PUT /rs_microservice/complaint/update/551 HTTP/1.1" 500
+2025-09-15 14:55:22,740 - ERROR - uvicorn.error - Exception in ASGI application
+Traceback (most recent call last):
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\uvicorn\protocols\http\h11_impl.py", line 403, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\uvicorn\middleware\proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\fastapi\applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\applications.py", line 113, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\middleware\cors.py", line 93, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\middleware\cors.py", line 144, in simple_response
+    await self.app(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\routing.py", line 75, in app
+    response = await f(request)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\fastapi\routing.py", line 328, in app
+    content = await serialize_response(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\fastapi\routing.py", line 177, in serialize_response
+    raise ResponseValidationError(
+fastapi.exceptions.ResponseValidationError: 1 validation errors:
+  {'type': 'missing', 'loc': ('response', 'data', 'customer_care'), 'msg': 'Field required', 'input': {'complain_id': 551, 'pnr_number': '2211331122', 'is_pnr_validated': 'not-attempted', 'name': 'string', 'mobile_number': 'string', 'complain_type': 'cleaning', 'complain_description': 'fvgjhbj', 'complain_date': '2025-08-22', 'complain_status': 'pending', 'coach': 'S2', 'berth_no': 10, 'created_at': '2025-09-15T14:31:53.465706+05:30', 'updated_at': '2025-09-15T14:55:09.421480+05:30', 'created_by': 'string', 'train_id': 123, 'updated_by': 'string', 'train_name': None, 'train_number': '12256', 'submission_status': 'submitted', 'train_no': None, 'train_depot': None, 'rail_sathi_complain_media_files': []}}
+
+2025-09-15 14:57:08,521 - INFO - uvicorn.access - 127.0.0.1:54835 - "POST /rs_microservice/v2/token HTTP/1.1" 200
+2025-09-15 14:57:20,752 - INFO - uvicorn.access - 127.0.0.1:61335 - "POST /rs_microservice/v2/token HTTP/1.1" 200
+2025-09-15 14:57:28,829 - INFO - main - Complaint fetched: {'complain_id': 551, 'pnr_number': '2211331122', 'is_pnr_validated': 'not-attempted', 'name': 'string', 'mobile_number': 'string', 'complain_type': 'cleaning', 'complain_description': 'fvgjhbj', 'complain_date': '2025-08-22', 'complain_status': 'pending', 'coach': 'S2', 'berth_no': 10, 'created_at': '2025-09-15T14:31:53.465706+05:30', 'updated_at': '2025-09-15T14:55:09.421480+05:30', 'created_by': 'string', 'train_id': 123, 'updated_by': 'string', 'train_name': None, 'train_number': '12256', 'submission_status': 'submitted', 'train_no': None, 'train_depot': None, 'rail_sathi_complain_media_files': []}
+2025-09-15 14:57:28,829 - INFO - uvicorn.access - 127.0.0.1:55602 - "GET /rs_microservice/v2/complaint/get/551 HTTP/1.1" 200
+2025-09-15 14:57:39,169 - INFO - main - Complaint fetched: {'complain_id': 544, 'pnr_number': '1515121214', 'is_pnr_validated': 'not-attempted', 'name': 'asad', 'mobile_number': '8517078080', 'complain_type': 'cleaning', 'complain_description': 'drity coach', 'complain_date': '2025-08-22', 'complain_status': 'pending', 'coach': 'S2', 'berth_no': 10, 'created_at': '2025-09-15T11:05:08.150300+05:30', 'updated_at': '2025-09-15T11:57:43.051798+05:30', 'created_by': 'asad', 'train_id': 123, 'updated_by': 'asad', 'train_name': None, 'train_number': '12256', 'submission_status': 'submitted', 'train_no': None, 'train_depot': None, 'rail_sathi_complain_media_files': []}
+2025-09-15 14:57:39,177 - INFO - uvicorn.access - 127.0.0.1:50308 - "GET /rs_microservice/v2/complaint/get/544 HTTP/1.1" 200
+2025-09-15 14:57:53,827 - INFO - uvicorn.access - 127.0.0.1:53636 - "GET /rs_microservice/v2/complaint/get/date/2025-08-22?mobile_number=8517078080 HTTP/1.1" 200
+2025-09-15 14:58:12,279 - ERROR - database - Query execution failed: invalid input syntax for type integer: "string"
+LINE 3:                 WHERE train_no = 'string' LIMIT 1
+                                         ^
+
+2025-09-15 14:58:12,279 - ERROR - database - Query: 
+                SELECT "Depot" FROM trains_traindetails 
+                WHERE train_no = 'string' LIMIT 1
+            
+2025-09-15 14:58:12,284 - ERROR - database - Params: None
+2025-09-15 14:58:12,284 - ERROR - main - Error fetching depot: invalid input syntax for type integer: "string"
+LINE 3:                 WHERE train_no = 'string' LIMIT 1
+                                         ^
+
+2025-09-15 14:59:12,431 - INFO - root - Email sent successfully to: contact@suvidhaen.com
+2025-09-15 14:59:12,431 - INFO - root - War room alert email sent successfully for PNR: string
+2025-09-15 14:59:12,544 - INFO - services - Starting email thread for complaint 552
+2025-09-15 14:59:12,546 - INFO - services - Email thread started for complaint 552
+2025-09-15 14:59:12,546 - INFO - services - Email thread started with name EmailThread-552
+2025-09-15 14:59:12,548 - INFO - services - Starting file upload for complaint 552, file: Screenshot 2025-08-14 184626.png
+2025-09-15 14:59:12,552 - INFO - services - File content size: 531409 bytes
+2025-09-15 14:59:12,552 - INFO - services - Processing file: Screenshot 2025-08-14 184626.png, content_type: image/png
+2025-09-15 14:59:12,552 - INFO - services - Uploading image file: Screenshot 2025-08-14 184626.png
+2025-09-15 14:59:12,592 - ERROR - database - Query execution failed: invalid input syntax for type integer: "string"
+LINE 1: SELECT * FROM trains_traindetails WHERE train_no = 'string'
+                                                           ^
+
+2025-09-15 14:59:12,592 - ERROR - database - Query: SELECT * FROM trains_traindetails WHERE train_no = %s
+2025-09-15 14:59:12,597 - ERROR - database - Params: ('string',)
+2025-09-15 14:59:12,599 - ERROR - services - Email thread failure for complaint 552: invalid input syntax for type integer: "string"
+LINE 1: SELECT * FROM trains_traindetails WHERE train_no = 'string'
+                                                           ^
+
+2025-09-15 14:59:24,393 - ERROR - services - Error in upload_file_thread for file Screenshot 2025-08-14 184626.png: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+2025-09-15 14:59:24,393 - ERROR - services - Full traceback: Traceback (most recent call last):
+  File "c:\s2\RailSathiBE\services.py", line 162, in upload_file_thread
+    uploaded_url = process_media_file_upload(file_content, ext, complain_id, media_type)
+  File "c:\s2\RailSathiBE\services.py", line 123, in process_media_file_upload
+    raise e
+  File "c:\s2\RailSathiBE\services.py", line 61, in process_media_file_upload
+    client = get_gcs_client()
+  File "c:\s2\RailSathiBE\services.py", line 34, in get_gcs_client
+    client = storage.Client(project=PROJECT_ID)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\storage\client.py", line 247, in __init__
+    super(Client, self).__init__(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\client\__init__.py", line 339, in __init__
+    Client.__init__(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\client\__init__.py", line 196, in __init__
+    credentials, _ = google.auth.default(scopes=scopes)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\auth\_default.py", line 685, in default
+    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
+google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+
+2025-09-15 14:59:25,561 - INFO - uvicorn.access - 127.0.0.1:62661 - "POST /rs_microservice/v2/complaint/add/ HTTP/1.1" 200
+2025-09-15 14:59:49,635 - INFO - uvicorn.access - 127.0.0.1:55958 - "PATCH /rs_microservice/v2/complaint/update/551 HTTP/1.1" 422
+2025-09-15 15:00:00,813 - ERROR - main - Error updating complaint 551: invalid input syntax for type date: "string"
+LINE 3: ... complain_description = 'string', complain_date = 'string', ...
+                                                             ^
+
+2025-09-15 15:00:00,813 - ERROR - main - Full traceback: Traceback (most recent call last):
+  File "c:\s2\RailSathiBE\auth_api_services.py", line 442, in update_complaint_endpoint
+    updated_complaint = update_complaint(complain_id, update_data)
+  File "c:\s2\RailSathiBE\services.py", line 574, in update_complaint
+    cursor.execute(query, tuple(values))
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\psycopg2\extras.py", line 236, in execute
+    return super().execute(query, vars)
+psycopg2.errors.InvalidDatetimeFormat: invalid input syntax for type date: "string"
+LINE 3: ... complain_description = 'string', complain_date = 'string', ...
+                                                             ^
+
+
+2025-09-15 15:00:00,827 - INFO - uvicorn.access - 127.0.0.1:51007 - "PATCH /rs_microservice/v2/complaint/update/551 HTTP/1.1" 500
+2025-09-15 15:00:24,066 - INFO - services - Starting passenger complaint email thread for updated complaint 551
+2025-09-15 15:00:24,066 - INFO - services - Email thread started for updated complaint 551
+2025-09-15 15:00:24,066 - INFO - services - Passenger complaint email thread started with name EmailThread-Update-551
+2025-09-15 15:00:24,066 - INFO - services - Starting file upload for complaint 551, file: Screenshot 2025-08-14 184626.png
+2025-09-15 15:00:24,066 - INFO - services - File content size: 531409 bytes
+2025-09-15 15:00:24,066 - INFO - services - Processing file: Screenshot 2025-08-14 184626.png, content_type: image/png
+2025-09-15 15:00:24,066 - INFO - services - Uploading image file: Screenshot 2025-08-14 184626.png
+2025-09-15 15:00:24,227 - ERROR - database - Query execution failed: invalid input syntax for type integer: "string"
+LINE 1: SELECT * FROM trains_traindetails WHERE train_no = 'string'
+                                                           ^
+
+2025-09-15 15:00:24,227 - ERROR - database - Query: SELECT * FROM trains_traindetails WHERE train_no = %s
+2025-09-15 15:00:24,230 - ERROR - database - Params: ('string',)
+2025-09-15 15:00:24,230 - ERROR - services - Email thread failure for updated complaint 551: invalid input syntax for type integer: "string"
+LINE 1: SELECT * FROM trains_traindetails WHERE train_no = 'string'
+                                                           ^
+
+2025-09-15 15:00:36,210 - ERROR - services - Error in upload_file_thread for file Screenshot 2025-08-14 184626.png: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+2025-09-15 15:00:36,210 - ERROR - services - Full traceback: Traceback (most recent call last):
+  File "c:\s2\RailSathiBE\services.py", line 162, in upload_file_thread
+    uploaded_url = process_media_file_upload(file_content, ext, complain_id, media_type)
+  File "c:\s2\RailSathiBE\services.py", line 123, in process_media_file_upload
+    raise e
+  File "c:\s2\RailSathiBE\services.py", line 61, in process_media_file_upload
+    client = get_gcs_client()
+  File "c:\s2\RailSathiBE\services.py", line 34, in get_gcs_client
+    client = storage.Client(project=PROJECT_ID)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\storage\client.py", line 247, in __init__
+    super(Client, self).__init__(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\client\__init__.py", line 339, in __init__
+    Client.__init__(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\client\__init__.py", line 196, in __init__
+    credentials, _ = google.auth.default(scopes=scopes)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\auth\_default.py", line 685, in default
+    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
+google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+
+2025-09-15 15:00:37,260 - INFO - uvicorn.access - 127.0.0.1:64923 - "PATCH /rs_microservice/v2/complaint/update/551 HTTP/1.1" 200
+2025-09-15 15:01:25,124 - INFO - uvicorn.access - 127.0.0.1:63189 - "PUT /rs_microservice/v2/complaint/update/551 HTTP/1.1" 403
+2025-09-15 15:02:10,245 - INFO - uvicorn.access - 127.0.0.1:60221 - "PUT /rs_microservice/v2/complaint/update/551 HTTP/1.1" 403
+2025-09-15 15:02:10,694 - INFO - uvicorn.access - 127.0.0.1:60221 - "PUT /rs_microservice/v2/complaint/update/551 HTTP/1.1" 403
+2025-09-15 15:05:05,414 - INFO - uvicorn.access - 127.0.0.1:63554 - "PUT /rs_microservice/v2/complaint/update/551 HTTP/1.1" 403
+2025-09-15 15:06:23,747 - INFO - uvicorn.access - 127.0.0.1:57158 - "PUT /rs_microservice/v2/complaint/update/551 HTTP/1.1" 403
+2025-09-15 15:15:01,310 - INFO - root - Email sent successfully to: contact@suvidhaen.com
+2025-09-15 15:15:01,310 - INFO - root - War room alert email sent successfully for PNR: 1012101210
+2025-09-15 15:15:01,426 - INFO - services - Starting email thread for complaint 553
+2025-09-15 15:15:01,427 - INFO - services - Email thread started for complaint 553
+2025-09-15 15:15:01,427 - INFO - services - Email thread started with name EmailThread-553
+2025-09-15 15:15:01,430 - INFO - services - Starting file upload for complaint 553, file: Screenshot 2025-08-14 184626.png
+2025-09-15 15:15:01,430 - INFO - services - File content size: 531409 bytes
+2025-09-15 15:15:01,430 - INFO - services - Processing file: Screenshot 2025-08-14 184626.png, content_type: image/png
+2025-09-15 15:15:01,430 - INFO - services - Uploading image file: Screenshot 2025-08-14 184626.png
+2025-09-15 15:15:01,477 - INFO - services - Sending email for complaint 553 to war room users
+2025-09-15 15:15:01,772 - INFO - root - No users found for depot  and train 12256 in complaint 553
+2025-09-15 15:15:01,772 - INFO - services - Email sent successfully for complaint 553
+2025-09-15 15:15:13,479 - ERROR - services - Error in upload_file_thread for file Screenshot 2025-08-14 184626.png: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+2025-09-15 15:15:13,479 - ERROR - services - Full traceback: Traceback (most recent call last):
+  File "c:\s2\RailSathiBE\services.py", line 162, in upload_file_thread
+    uploaded_url = process_media_file_upload(file_content, ext, complain_id, media_type)
+  File "c:\s2\RailSathiBE\services.py", line 123, in process_media_file_upload
+    raise e
+  File "c:\s2\RailSathiBE\services.py", line 61, in process_media_file_upload
+    client = get_gcs_client()
+  File "c:\s2\RailSathiBE\services.py", line 34, in get_gcs_client
+    client = storage.Client(project=PROJECT_ID)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\storage\client.py", line 247, in __init__
+    super(Client, self).__init__(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\client\__init__.py", line 339, in __init__
+    Client.__init__(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\client\__init__.py", line 196, in __init__
+    credentials, _ = google.auth.default(scopes=scopes)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\auth\_default.py", line 685, in default
+    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
+google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+
+2025-09-15 15:15:14,527 - INFO - uvicorn.access - 127.0.0.1:51468 - "POST /rs_microservice/v2/complaint/add HTTP/1.1" 200
+2025-09-15 15:16:33,596 - INFO - services - Starting passenger complaint email thread for updated complaint 553
+2025-09-15 15:16:33,596 - INFO - services - Email thread started for updated complaint 553
+2025-09-15 15:16:33,596 - INFO - services - Passenger complaint email thread started with name EmailThread-Update-553
+2025-09-15 15:16:33,596 - INFO - services - Starting file upload for complaint 553, file: Screenshot 2025-08-14 184626.png
+2025-09-15 15:16:33,596 - INFO - services - File content size: 531409 bytes
+2025-09-15 15:16:33,596 - INFO - services - Processing file: Screenshot 2025-08-14 184626.png, content_type: image/png
+2025-09-15 15:16:33,596 - INFO - services - Uploading image file: Screenshot 2025-08-14 184626.png
+2025-09-15 15:16:33,759 - ERROR - database - Query execution failed: invalid input syntax for type integer: "string"
+LINE 1: SELECT * FROM trains_traindetails WHERE train_no = 'string'
+                                                           ^
+
+2025-09-15 15:16:33,759 - ERROR - database - Query: SELECT * FROM trains_traindetails WHERE train_no = %s
+2025-09-15 15:16:33,759 - ERROR - database - Params: ('string',)
+2025-09-15 15:16:33,759 - ERROR - services - Email thread failure for updated complaint 553: invalid input syntax for type integer: "string"
+LINE 1: SELECT * FROM trains_traindetails WHERE train_no = 'string'
+                                                           ^
+
+2025-09-15 15:16:45,830 - ERROR - services - Error in upload_file_thread for file Screenshot 2025-08-14 184626.png: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+2025-09-15 15:16:45,831 - ERROR - services - Full traceback: Traceback (most recent call last):
+  File "c:\s2\RailSathiBE\services.py", line 162, in upload_file_thread
+    uploaded_url = process_media_file_upload(file_content, ext, complain_id, media_type)
+  File "c:\s2\RailSathiBE\services.py", line 123, in process_media_file_upload
+    raise e
+  File "c:\s2\RailSathiBE\services.py", line 61, in process_media_file_upload
+    client = get_gcs_client()
+  File "c:\s2\RailSathiBE\services.py", line 34, in get_gcs_client
+    client = storage.Client(project=PROJECT_ID)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\storage\client.py", line 247, in __init__
+    super(Client, self).__init__(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\client\__init__.py", line 339, in __init__
+    Client.__init__(
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\cloud\client\__init__.py", line 196, in __init__
+    credentials, _ = google.auth.default(scopes=scopes)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\google\auth\_default.py", line 685, in default
+    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
+google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+
+2025-09-15 15:16:46,897 - INFO - uvicorn.access - 127.0.0.1:50684 - "PUT /rs_microservice/v2/complaint/update/553 HTTP/1.1" 200
+2025-09-15 15:17:30,130 - INFO - uvicorn.access - 127.0.0.1:51044 - "DELETE /rs_microservice/v2/complaint/delete/551 HTTP/1.1" 403
+2025-09-15 15:18:00,179 - INFO - uvicorn.access - 127.0.0.1:61259 - "DELETE /rs_microservice/v2/complaint/delete/553 HTTP/1.1" 403
+2025-09-15 15:18:29,007 - INFO - uvicorn.access - 127.0.0.1:62253 - "DELETE /rs_microservice/v2/complaint/delete/553 HTTP/1.1" 403
+2025-09-15 15:18:46,578 - INFO - uvicorn.access - 127.0.0.1:53762 - "DELETE /rs_microservice/v2/complaint/delete/553 HTTP/1.1" 403
+2025-09-15 15:18:53,212 - INFO - uvicorn.access - 127.0.0.1:53268 - "DELETE /rs_microservice/v2/complaint/delete/553 HTTP/1.1" 403
+2025-09-15 15:19:37,264 - INFO - uvicorn.access - 127.0.0.1:59576 - "DELETE /rs_microservice/v2/complaint/delete/553 HTTP/1.1" 403
+2025-09-15 15:19:46,690 - INFO - uvicorn.access - 127.0.0.1:59791 - "DELETE /rs_microservice/v2/complaint/delete/553 HTTP/1.1" 403
+2025-09-15 15:20:11,244 - INFO - main - Complaint fetched: {'complain_id': 553, 'pnr_number': '1020304050', 'is_pnr_validated': 'not-attempted', 'name': 'asad', 'mobile_number': '8585859696', 'complain_type': 'cleaning', 'complain_description': 'string', 'complain_date': '2025-08-22', 'complain_status': 'completed', 'coach': 'S3', 'berth_no': 2, 'created_at': '2025-09-15T15:15:01.345811+05:30', 'updated_at': '2025-09-15T15:16:33.527533+05:30', 'created_by': 'asad', 'train_id': 123, 'updated_by': 'asad', 'train_name': None, 'train_number': 'string', 'submission_status': 'pending', 'train_no': None, 'train_depot': None, 'rail_sathi_complain_media_files': []}
+2025-09-15 15:20:11,244 - INFO - uvicorn.access - 127.0.0.1:59825 - "GET /rs_microservice/v2/complaint/get/553 HTTP/1.1" 200
+2025-09-15 15:20:33,011 - INFO - uvicorn.access - 127.0.0.1:49671 - "DELETE /rs_microservice/v2/complaint/delete/553 HTTP/1.1" 403
+2025-09-15 15:20:46,960 - INFO - main - Complaint fetched: {'complain_id': 552, 'pnr_number': 'string', 'is_pnr_validated': 'not-attempted', 'name': 'string', 'mobile_number': 'string', 'complain_type': 'string', 'complain_description': 'string', 'complain_date': '2025-09-15', 'complain_status': 'pending', 'coach': 'string', 'berth_no': 0, 'created_at': '2025-09-15T14:59:12.477836+05:30', 'updated_at': '2025-09-15T14:59:12.477836+05:30', 'created_by': 'asad', 'train_id': 123, 'updated_by': None, 'train_name': None, 'train_number': 'string', 'submission_status': 'pending', 'train_no': None, 'train_depot': None, 'rail_sathi_complain_media_files': []}
+2025-09-15 15:20:46,977 - INFO - uvicorn.access - 127.0.0.1:49671 - "GET /rs_microservice/v2/complaint/get/552 HTTP/1.1" 200
+2025-09-15 15:21:13,677 - INFO - uvicorn.access - 127.0.0.1:64354 - "DELETE /rs_microservice/v2/complaint/delete/552 HTTP/1.1" 200
+2025-09-15 15:21:45,810 - INFO - uvicorn.access - 127.0.0.1:59000 - "DELETE /rs_microservice/v2/media/delete/553 HTTP/1.1" 403
+2025-09-15 15:23:25,706 - INFO - uvicorn.access - 127.0.0.1:64002 - "GET /AapKaBaap/ HTTP/1.1" 404
+2025-09-15 15:23:27,011 - INFO - uvicorn.access - 127.0.0.1:64002 - "GET /AapKaBaap/ HTTP/1.1" 404
+2025-09-15 15:23:28,075 - INFO - uvicorn.access - 127.0.0.1:64002 - "GET /AapKaBaap/ HTTP/1.1" 404
+2025-09-15 15:23:28,560 - INFO - uvicorn.access - 127.0.0.1:64002 - "GET /AapKaBaap/ HTTP/1.1" 404
+2025-09-15 15:23:28,715 - INFO - uvicorn.access - 127.0.0.1:64002 - "GET /AapKaBaap/ HTTP/1.1" 404
+2025-09-15 15:23:28,868 - INFO - uvicorn.access - 127.0.0.1:64002 - "GET /AapKaBaap/ HTTP/1.1" 404
+2025-09-15 15:23:29,010 - INFO - uvicorn.access - 127.0.0.1:64002 - "GET /AapKaBaap/ HTTP/1.1" 404
+2025-09-15 15:23:29,170 - INFO - uvicorn.access - 127.0.0.1:64002 - "GET /AapKaBaap/ HTTP/1.1" 404
+2025-09-15 15:23:29,296 - INFO - uvicorn.access - 127.0.0.1:64002 - "GET /AapKaBaap/ HTTP/1.1" 404
+2025-09-15 15:27:27,665 - INFO - uvicorn.error - Shutting down
+2025-09-15 15:27:27,776 - INFO - uvicorn.error - Finished server process [13716]
+2025-09-15 15:27:27,776 - ERROR - uvicorn.error - Traceback (most recent call last):
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\asyncio\runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 633, in run_until_complete
+    self.run_forever()
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 600, in run_forever
+    self._run_once()
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 1896, in _run_once
+    handle._run()
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\asyncio\events.py", line 80, in _run
+    self._context.run(self._callback, *self._args)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\uvicorn\server.py", line 70, in serve
+    with self.capture_signals():
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\contextlib.py", line 142, in __exit__
+    next(self.gen)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\uvicorn\server.py", line 331, in capture_signals
+    signal.raise_signal(captured_signal)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\routing.py", line 701, in lifespan
+    await receive()
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\uvicorn\lifespan\on.py", line 137, in receive
+    return await self.receive_queue.get()
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\asyncio\queues.py", line 159, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+2025-09-15 15:27:27,886 - INFO - uvicorn.error - Stopping reloader process [11408]
+2025-09-15 15:29:17,737 - INFO - uvicorn.error - Will watch for changes in these directories: ['c:\\s2\\RailSathiBE']
+2025-09-15 15:29:17,753 - INFO - uvicorn.error - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-09-15 15:29:17,753 - INFO - uvicorn.error - Started reloader process [23440] using StatReload
+2025-09-15 15:29:20,011 - INFO - uvicorn.error - Started server process [10244]
+2025-09-15 15:29:20,011 - INFO - uvicorn.error - Waiting for application startup.
+2025-09-15 15:29:20,015 - INFO - uvicorn.error - Application startup complete.
+2025-09-15 15:29:20,237 - INFO - uvicorn.error - Shutting down
+2025-09-15 15:29:20,350 - INFO - uvicorn.error - Finished server process [10244]
+2025-09-15 15:29:20,350 - ERROR - uvicorn.error - Traceback (most recent call last):
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\asyncio\runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 633, in run_until_complete
+    self.run_forever()
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 600, in run_forever
+    self._run_once()
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 1896, in _run_once
+    handle._run()
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\asyncio\events.py", line 80, in _run
+    self._context.run(self._callback, *self._args)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\uvicorn\server.py", line 70, in serve
+    with self.capture_signals():
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\contextlib.py", line 142, in __exit__
+    next(self.gen)
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\uvicorn\server.py", line 331, in capture_signals
+    signal.raise_signal(captured_signal)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\starlette\routing.py", line 701, in lifespan
+    await receive()
+  File "c:\s2\Sanchalak_BE\venv\lib\site-packages\uvicorn\lifespan\on.py", line 137, in receive
+    return await self.receive_queue.get()
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\asyncio\queues.py", line 159, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+2025-09-15 15:29:20,476 - INFO - uvicorn.error - Stopping reloader process [23440]
+2025-09-15 19:18:49,299 - INFO - uvicorn.error - Will watch for changes in these directories: ['c:\\s2\\RailSathiBE']
+2025-09-15 19:18:49,299 - INFO - uvicorn.error - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-09-15 19:18:49,299 - INFO - uvicorn.error - Started reloader process [24160] using StatReload
+2025-09-15 19:18:51,980 - INFO - uvicorn.error - Started server process [13096]
+2025-09-15 19:18:51,980 - INFO - uvicorn.error - Waiting for application startup.
+2025-09-15 19:18:51,980 - INFO - uvicorn.error - Application startup complete.
+2025-09-15 19:21:46,318 - INFO - uvicorn.access - 127.0.0.1:56109 - "GET /rs_microservice/docs HTTP/1.1" 200
+2025-09-15 19:21:46,579 - INFO - uvicorn.access - 127.0.0.1:56109 - "GET /rs_microservice/openapi.json HTTP/1.1" 200
+2025-09-15 19:22:20,357 - INFO - uvicorn.error - Shutting down
+2025-09-15 19:22:20,468 - INFO - uvicorn.error - Waiting for application shutdown.
+2025-09-15 19:22:20,468 - INFO - uvicorn.error - Application shutdown complete.
+2025-09-15 19:22:20,471 - INFO - uvicorn.error - Finished server process [13096]
+2025-09-15 19:22:20,646 - INFO - uvicorn.error - Stopping reloader process [24160]
+2025-09-15 19:22:41,338 - INFO - uvicorn.error - Will watch for changes in these directories: ['c:\\s2\\RailSathiBE']
+2025-09-15 19:22:41,338 - INFO - uvicorn.error - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-09-15 19:22:41,338 - INFO - uvicorn.error - Started reloader process [744] using StatReload
+2025-09-15 19:22:43,525 - INFO - uvicorn.error - Started server process [24488]
+2025-09-15 19:22:43,525 - INFO - uvicorn.error - Waiting for application startup.
+2025-09-15 19:22:43,530 - INFO - uvicorn.error - Application startup complete.
+2025-09-15 19:22:48,334 - INFO - uvicorn.access - 127.0.0.1:60058 - "GET /rs_microservice/docs HTTP/1.1" 200
+2025-09-15 19:22:48,463 - INFO - uvicorn.access - 127.0.0.1:60058 - "GET /rs_microservice/openapi.json HTTP/1.1" 200
+2025-09-15 19:22:56,200 - INFO - uvicorn.access - 127.0.0.1:59803 - "GET /rs_microservice HTTP/1.1" 200
+2025-09-15 19:23:23,507 - ERROR - main - Error getting complaint 544: 1 validation error for RailSathiComplainResponse
+data.customer_care
+  Field required [type=missing, input_value={'complain_id': 544, 'pnr...mplain_media_files': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+2025-09-15 19:23:23,507 - INFO - uvicorn.access - 127.0.0.1:49220 - "GET /rs_microservice/complaint/get/544 HTTP/1.1" 500
+2025-09-15 19:23:43,056 - ERROR - main - Error getting complaint 544: 1 validation error for RailSathiComplainResponse
+data.customer_care
+  Field required [type=missing, input_value={'complain_id': 544, 'pnr...mplain_media_files': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+2025-09-15 19:23:43,056 - INFO - uvicorn.access - 127.0.0.1:50137 - "GET /rs_microservice/complaint/get/544 HTTP/1.1" 500
+2025-09-15 19:24:39,829 - ERROR - main - Error getting complaint 544: 1 validation error for RailSathiComplainResponse
+data.customer_care
+  Field required [type=missing, input_value={'complain_id': 544, 'pnr...mplain_media_files': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+2025-09-15 19:24:39,829 - INFO - uvicorn.access - 127.0.0.1:59157 - "GET /rs_microservice/complaint/get/544 HTTP/1.1" 500
+2025-09-15 19:24:56,766 - INFO - uvicorn.access - 127.0.0.1:58559 - "GET /rs_microservice/complaint/get/date/2025-08-22?mobile_number=8517078080 HTTP/1.1" 200
+2025-09-15 19:28:53,489 - INFO - uvicorn.access - 127.0.0.1:60216 - "GET /rs_microservice/complaint/get/date/2025-08-22?mobile_number=8517078080 HTTP/1.1" 200
+2025-09-15 19:29:13,079 - INFO - uvicorn.access - 127.0.0.1:58801 - "GET /rs_microservice HTTP/1.1" 200
+2025-09-15 19:29:53,781 - INFO - uvicorn.access - 127.0.0.1:56821 - "GET /rs_microservice/docs HTTP/1.1" 200
+2025-09-15 19:29:54,019 - INFO - uvicorn.access - 127.0.0.1:56821 - "GET /rs_microservice/openapi.json HTTP/1.1" 200
+2025-09-15 19:30:01,473 - INFO - uvicorn.access - 127.0.0.1:53629 - "GET /rs_microservice HTTP/1.1" 200
+2025-09-15 19:30:11,968 - INFO - uvicorn.error - Shutting down
+2025-09-15 19:30:12,080 - INFO - uvicorn.error - Waiting for application shutdown.
+2025-09-15 19:30:12,082 - INFO - uvicorn.error - Application shutdown complete.
+2025-09-15 19:30:12,082 - INFO - uvicorn.error - Finished server process [24488]
+2025-09-15 19:30:12,520 - INFO - uvicorn.error - Stopping reloader process [744]
+2025-09-15 19:30:21,732 - INFO - uvicorn.error - Will watch for changes in these directories: ['c:\\s2\\RailSathiBE']
+2025-09-15 19:30:21,747 - INFO - uvicorn.error - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-09-15 19:30:21,747 - INFO - uvicorn.error - Started reloader process [7976] using StatReload
+2025-09-15 19:30:25,049 - INFO - uvicorn.error - Started server process [20836]
+2025-09-15 19:30:25,049 - INFO - uvicorn.error - Waiting for application startup.
+2025-09-15 19:30:25,049 - INFO - uvicorn.error - Application startup complete.
+2025-09-15 19:30:32,406 - INFO - uvicorn.access - 127.0.0.1:54494 - "GET /rs_microservice/docs HTTP/1.1" 200
+2025-09-15 19:30:32,613 - INFO - uvicorn.access - 127.0.0.1:54494 - "GET /rs_microservice/openapi.json HTTP/1.1" 200
+2025-09-15 19:30:37,489 - INFO - uvicorn.access - 127.0.0.1:54494 - "GET /rs_microservice HTTP/1.1" 200
+2025-09-15 19:31:16,040 - ERROR - main - Error getting complaint 554: 1 validation error for RailSathiComplainResponse
+data.customer_care
+  Field required [type=missing, input_value={'complain_id': 554, 'pnr...mplain_media_files': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+2025-09-15 19:31:16,040 - INFO - uvicorn.access - 127.0.0.1:58168 - "GET /rs_microservice/complaint/get/554 HTTP/1.1" 500
+2025-09-15 19:31:41,967 - INFO - uvicorn.access - 127.0.0.1:58084 - "POST /rs_microservice/v2/token HTTP/1.1" 200
+2025-09-15 19:32:02,254 - INFO - uvicorn.access - 127.0.0.1:57025 - "GET /health HTTP/1.1" 200
+2025-09-15 19:32:27,333 - INFO - uvicorn.access - 127.0.0.1:51427 - "POST /rs_microservice/v2/token HTTP/1.1" 200
+2025-09-15 19:32:39,032 - INFO - main - Complaint fetched: {'complain_id': 554, 'pnr_number': 'string', 'is_pnr_validated': 'string', 'name': 'string', 'mobile_number': 'string', 'complain_type': 'string', 'complain_description': 'string', 'complain_date': '2025-08-22', 'complain_status': 'string', 'coach': 'string', 'berth_no': 0, 'created_at': '2025-09-15T15:32:08.653015+05:30', 'updated_at': '2025-09-15T15:34:51.744729+05:30', 'created_by': 'string', 'train_id': 123, 'updated_by': 'string', 'train_name': None, 'train_number': 'string', 'submission_status': 'submitted', 'train_no': None, 'train_depot': None, 'rail_sathi_complain_media_files': []}
+2025-09-15 19:32:39,032 - INFO - uvicorn.access - 127.0.0.1:59053 - "GET /rs_microservice/v2/complaint/get/554 HTTP/1.1" 200
+2025-09-15 19:38:06,956 - INFO - uvicorn.access - 127.0.0.1:64996 - "GET /rs_microservice/v2/complaint/get/date/2025-08-22?mobile_number=8517078080 HTTP/1.1" 200
+2025-09-15 19:38:24,766 - INFO - uvicorn.error - Shutting down
+2025-09-15 19:38:24,879 - INFO - uvicorn.error - Waiting for application shutdown.
+2025-09-15 19:38:24,879 - INFO - uvicorn.error - Application shutdown complete.
+2025-09-15 19:38:24,882 - INFO - uvicorn.error - Finished server process [20836]
+2025-09-15 19:38:25,079 - INFO - uvicorn.error - Stopping reloader process [7976]
+2025-09-15 20:20:06,253 - INFO - uvicorn.error - Will watch for changes in these directories: ['c:\\s2\\RailSathiBE']
+2025-09-15 20:20:06,253 - INFO - uvicorn.error - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-09-15 20:20:06,253 - INFO - uvicorn.error - Started reloader process [19748] using StatReload
+2025-09-15 20:20:09,417 - INFO - uvicorn.error - Started server process [15852]
+2025-09-15 20:20:09,417 - INFO - uvicorn.error - Waiting for application startup.
+2025-09-15 20:20:09,422 - INFO - uvicorn.error - Application startup complete.
+2025-09-15 20:20:20,546 - INFO - uvicorn.access - 127.0.0.1:59673 - "GET /rs_microservice/docs HTTP/1.1" 200
+2025-09-15 20:20:20,795 - INFO - uvicorn.access - 127.0.0.1:59673 - "GET /rs_microservice/openapi.json HTTP/1.1" 200
+2025-09-15 20:20:26,011 - INFO - uvicorn.access - 127.0.0.1:62677 - "GET /rs_microservice HTTP/1.1" 200
+2025-09-15 20:20:58,023 - ERROR - main - Error getting complaint 544: 1 validation error for RailSathiComplainResponse
+data.customer_care
+  Field required [type=missing, input_value={'complain_id': 544, 'pnr...mplain_media_files': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.11/v/missing
+2025-09-15 20:20:58,023 - INFO - uvicorn.access - 127.0.0.1:54263 - "GET /rs_microservice/complaint/get/544 HTTP/1.1" 500
+2025-09-15 20:21:12,949 - INFO - uvicorn.error - Shutting down
+2025-09-15 20:21:13,061 - INFO - uvicorn.error - Waiting for application shutdown.
+2025-09-15 20:21:13,061 - INFO - uvicorn.error - Application shutdown complete.
+2025-09-15 20:21:13,063 - INFO - uvicorn.error - Finished server process [15852]
+2025-09-15 20:21:13,407 - INFO - uvicorn.error - Stopping reloader process [19748]
