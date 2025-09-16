@@ -91,11 +91,34 @@ class RailSathiComplainData(BaseModel):
     customer_care: Optional[str]
     train_depot: Optional[str]
     rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse]
+    
+class RailSathiComplainGetData(BaseModel):
+    complain_id: int
+    pnr_number: Optional[str]
+    is_pnr_validated: Optional[str]
+    name: Optional[str]
+    mobile_number: Optional[str]
+    complain_type: Optional[str]
+    complain_description: Optional[str]
+    complain_date: Optional[date]
+    complain_status: str
+    train_id: Optional[int]
+    train_number: Optional[str]
+    train_name: Optional[str]
+    coach: Optional[str]
+    berth_no: Optional[int]
+    created_at: datetime
+    created_by: Optional[str]
+    updated_at: datetime
+    updated_by: Optional[str]
+    train_depot: Optional[str]
+    rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse]
+
 
 # Response wrapper that matches your actual API response structure
 class RailSathiComplainResponse(BaseModel):
     message: str
-    data: RailSathiComplainData
+    data: RailSathiComplainGetData
 
 # Alternative: If you want to keep the flat structure, modify your endpoint to return:
 class RailSathiComplainFlatResponse(BaseModel):
