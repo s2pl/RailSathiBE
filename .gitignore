@@ -25,6 +25,7 @@ venv/
 env/
 ENV/
 .env
+.venv
 
 # IDE
 .idea/
@@ -37,3 +38,9 @@ ENV/
 *.log
 logs/
 sa.json
+
+#pytest
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
