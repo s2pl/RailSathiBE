@@ -358,7 +358,12 @@ def create_complaint(complaint_data):
             now
         ))
         
-        complain_id = cursor.fetchone()[0]
+        row = cursor.fetchone()
+        if row:
+            complain_id = row["complain_id"] if "complain_id" in row else list(row.values())[0]
+        else:
+            complain_id = None
+
         conn.commit()
         
         # Get the created complaint

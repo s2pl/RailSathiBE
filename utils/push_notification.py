@@ -39,3 +39,4 @@ def send_push_notification(token, title, body, data=None):
     except Exception as e:
         logging.error(f"Failed to send push notification: {e}")
         return None
+
