@@ -10,7 +10,7 @@ from datetime import datetime
 import pytz
 import json
 from utils.push_notification import send_push_notification
-from utils.notification_utils import send_passenger_complaint_notification_in_thread
+from utils.notification_utils import send_passenger_complaint_notification_in_thread , send_passenger_complaint_push_and_in_app_in_thread
 
 EMAIL_SENDER = conf.MAIL_FROM
 
@@ -267,7 +267,7 @@ def send_passenger_complain_notifications(complain_details: Dict):
                 # Dispatch push notification in a background thread (non-blocking)
                 logging.debug(f"[Push][Build] Complaint notification payload: {json.dumps(complaint_for_notification, indent=2, ensure_ascii=False)}")
                 print("[DEBUG] Push Notification Payload =>", complaint_for_notification)
-                dispatched = send_passenger_complaint_notification_in_thread(fcm_tokens, complaint_for_notification)
+                dispatched = send_passenger_complaint_push_and_in_app_in_thread(fcm_tokens, complaint_for_notification)
                 if dispatched:
                     logging.info(f"Push notification thread started for complaint {complaint_for_notification.get('complain_id')}")
                 else:
