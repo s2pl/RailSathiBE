@@ -9,7 +9,6 @@ from database import get_db_connection, execute_query  # Fixed import
 from datetime import datetime
 import pytz
 import json
-from utils.push_notification import send_push_notification
 from utils.notification_utils import send_passenger_complaint_notification_in_thread , send_passenger_complaint_push_and_in_app_in_thread
 
 EMAIL_SENDER = conf.MAIL_FROM
@@ -67,32 +66,6 @@ def send_plain_mail(subject: str, message: str, from_: str, to: List[str], cc: L
     except Exception as e:
         logging.exception(f"Error in send_plain_mail: {repr(e)}")
         return False
-
-# Function to send push/pop-ups to OBHS staff
-def send_notifications(complain_details: Dict, users_tokens: List[str]):
-    notification_payload = {
-        "complain_id": complain_details.get("complain_id"),
-        "complain_date": complain_details.get("created_at"),
-        "train_no": complain_details.get("train_no"),
-        "train_name": complain_details.get("train_name"),
-        "coach": complain_details.get("coach"),
-        "berth": complain_details.get("berth_no"),
-        "description": complain_details.get("complain_description"),
-    }
-
-    try:
-        for token in users_tokens:
-            try:
-                send_push_notification(
-                    token=token,
-                    title=f"New Complaint for Train {complain_details['train_no']}",
-                    body=complain_details.get("complain_description", "New complaint registered"),
-                    data=notification_payload
-                )
-            except Exception as inner_e:
-                logging.error(f"Failed to notify OBHS user with token {token}: {inner_e}")
-    except Exception as e:
-        logging.error(f"Unexpected error in OBHS notification flow: {e}")
 
 def send_passenger_complain_notifications(complain_details: Dict):
     """Send complaint email to war room users with CC to other users"""
@@ -357,10 +330,6 @@ def send_passenger_complain_notifications(complain_details: Dict):
         template = Template(template_content)
         message = template.render(context)
         
-        # Trigger OBHS notifications here
-        if users_tokens:
-            send_notifications(complain_details, users_tokens)
-
         # Collect all unique email addresses
         all_emails = []
         for user in all_users_to_mail:

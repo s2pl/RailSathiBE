@@ -61,12 +61,12 @@ def build_passenger_complaint_notification(
             except ValueError:
                 continue
 
-    title = f"🚨 Railsathi Complaint - {train_no} ({coach}{berth}) "
+    title = f"🚨 Railsathi Complaint - {train_no} ({coach} - {berth}) "
 
     body_lines = [
         f"👤 Name: {passenger_name} | {passenger_phone}",
         f"🚂 Train: {train_no} | {coach}/{berth}",
-        f"📝 Complaint: \"{description}\"",
+        f"📝 Complaint: {description}",
     ]
     if priority.lower() in ("high", "urgent"):
         body_lines.append("⚠️ IMMEDIATE ACTION REQUIRED")
