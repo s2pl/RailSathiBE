@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "sanchalak-0000",
+  "private_key_id": "78e679b33samplesecret53a826792f",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQ78e679b33samplesecret53a826792fQCzctrvFZJ59wl7\ncWoRxiRyGXMVsYZxqgiXCdgcseq8+99RycA4KkAPF0e0kzRLcL0SPgU0Lxzao1cg\nao8/w5pBg/9fwGq45XkhDiQTl10ndb4Ce9Me7oGQHgRMTaEaywMRteIUg5qswrwD\nLsG8nLOHc1Qq8XkDnMQARsKiSMuavQZ6kGuXwjxu/kNB2ynJIh0B4j4RDO54w9jk\n0bPBDs85jIi9EDpVQofRJSzpnqClmnRk+dOHzDEqFda+2SBaTqwmhxK4/jc+npbe\njGGO1wKZKoBpnh1W/2sPPloe0sA7FSGputGf2eyvMVFLPmlzO9YL1SsXn1Z4XlkS\nqwGq8OS/AgMBAAECggEASEY0poG2PphAQe8ibOk0iZ31a6HWB9aXYhnNaHVCGX6K\nadsLp7NgnJNgRnrZX58XD49aMjPdd7O85in06xYhfUyoIM0TTsfhmu4imp9mnft+\nnWp41Cb0mPJ2AbNsdSmZ4VqzpVaCCB3gcpm03v3wEthg6HDcMBfGG2RkhM8z7eyR\nEZdfnn9seZnlj8A1CRD1c4je8YMC9rKZvC6SFglc0pyZMz5reB3mKKJvkf37gAv3\ndeISYU9ujvmDBRicO4oKZvzYnBcU+N2UTSb1ISxqrCfIC+BClk0aR4MUAnkoSlfx\n5UAxA3O0H2Bo+nB8HmWarDsHY+jLa0zG8xhjEgLAnQKBgQDx7mrr4Ec8+ovrG5fX\n3LHyDZWFqYreO1j1dUkbxEJ4WFvuqbWe26C9tOaC1bLG+OoCmxEy+Qxniq6+Tq49\n2rspkvKfivGEx2a+TElKNSDJMQWbSdA447eSVCldcod9kWhasawyZicRW8onh+Jp\naBypq5uOk0uBw08X8Sy+YX21EwKBgQC94kVT5kuYmwduE51g7zUI/WJZNWkG1Ik3\nd3bNx6U4qfFB0xM86cdIHVDIxRIrbIm7fDK7V2zZ4OMbYXGZXUs1GAqQS7dAbMlq\ndK3DfXIpKm/ke4ugfJMvSjX2TO99TjWzN0Cj2ub3euj2Eif8Y2HF6pflN+fGfPh1\n0eD5TA+DJQKBgCtomvitqjqPvfE2Zz1NFQSYWV69N/R9840/ORnpUf/j4sLk4niZ\ncbL4NW/+RfCbkulax3A87XPal1YAKhVhHLnt6uijdohbetzkNTZCaBqRWC8vxFOg\n0DxKK43f0d2+7FlxjbMRTys3LAOBxycgjhwHdYbUePTUhWmHVX7nYTXPAoGAXMmq\nKRJ7VGpFWjP5jrm1h9wR6BfiZ7UKDHGzO2FYynS48PqNBxISEJpKtKEgfNnAAD7z\np3pUNa/gKqwWT+Q38Qz7dIGbXb8LOZskoke1tooHPXZlx5m4br5r2hzEVs4WDapt\nSuSYQszr8/rxUTLbP1SgvyDvgJ3m5+QUdJ4HYoUCgYAO5farjwpcz40DsUSSZSjG\ng2bCCJlR4Yjxj5FfhjxPxtF4Qc6r+NN8oRMpv2K3uee2he4/PljMdMFtANe+VHcN\no3M7tvKVIOWgF/1+NeDkoAfQHkUg6Fuz5ZxK0uN6+Ai1+EpeUHhtLbLCKm3ZXKip\n5C+40OKVRMqxL0hA/eJE1A==\n-----END PRIVATE KEY-----\n",
+  "client_email": "sanchalak-upload-serv-account@sanchalak-0000.iam.gserviceaccount.com",
+  "client_id": "116577000030290006690",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sanchalak-upload-serv-account%40sanchalak-0000.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
