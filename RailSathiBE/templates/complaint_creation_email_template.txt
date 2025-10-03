@@ -1,0 +1,23 @@
+Passenger Complaint Submitted
+
+A new passenger complaint has been submitted via RailSathi.
+
+Complain ID : {{ complain_id }}
+Submitted On : {{ created_at }}
+
+Passenger : {{ passenger_name }} | {{ user_phone_number }}
+
+Train : {{ train_no }} | {{ train_name }}
+Commencement date : {{ start_date_of_journey }}
+Coach/Berth : {{coach}} / {{ berth }}
+PNR : {{ pnr }}
+
+Complaint : {{ description }}
+Depot : {{ train_depo }}
+
+Kindly take necessary action at the earliest.
+
+This is an automated notification. Please do not reply.
+
+Regards,  
+Team RailSathi
