@@ -69,6 +69,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
                 detail="Invalid or expired token"
             )
 
+
 #Login Endpoint to get JWT token
 @router.post("/token")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
@@ -89,6 +90,142 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         token = create_access_token(data={"sub": user[0]['username']})
         return {"access_token": token, "token_type": "bearer"}
     
+    finally:
+        conn.close()
+
+import re, time, logging
+from psycopg2.extras import RealDictCursor
+from passlib.context import CryptContext
+
+# Initialize password context for hashing
+pwd_context = CryptContext(schemes=["django_pbkdf2_sha256"], deprecated="auto")
+
+
+@router.post("/signup")
+async def signup(
+    f_name: str = Form(...),
+    m_name: str = Form(""),
+    l_name: str = Form(...),
+    phone: str = Form(...),
+    whatsapp_number: str = Form(...),
+    password: str = Form(...),
+    re_password: str = Form(...),
+    email: str = Form("noemail@gmail.com"),
+    division: str = Form(None),
+    zone: str = Form(None),
+    depo: str = Form(None),
+    emp_number: str = Form(None),
+):
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        # -----------------------------
+        # Required fields validation
+        # -----------------------------
+        required_fields = ["f_name", "l_name", "phone", "password", "re_password", "whatsapp_number"]
+        for field in required_fields:
+            if not locals()[field]:
+                raise HTTPException(status_code=400, detail=f"{field} is required")
+
+        # -----------------------------
+        # Phone & WhatsApp validation
+        # -----------------------------
+        if not re.match(r'^\d{10}$', phone) or phone.startswith("0"):
+            raise HTTPException(status_code=400, detail="Invalid phone number")
+
+        if not re.match(r'^\d{10}$', whatsapp_number) or whatsapp_number.startswith("0"):
+            raise HTTPException(status_code=400, detail="Invalid WhatsApp number")
+
+        # -----------------------------
+        # Password match & hash
+        # -----------------------------
+        if password != re_password:
+            raise HTTPException(status_code=400, detail="Passwords do not match")
+
+        # -----------------------------
+        # Generate fallback email
+        # -----------------------------
+        if not email or email == "noemail@gmail.com":
+            ts = int(time.time())
+            email = f"noemailid.sanchalak.{ts}@gmail.com"
+
+        # -----------------------------
+        # Duplicate checks
+        # -----------------------------
+        cur.execute("""
+            SELECT id FROM user_onboarding_user
+            WHERE phone=%s OR whatsapp_number=%s OR email=%s
+        """, (phone, whatsapp_number, email))
+        if cur.fetchone():
+            raise HTTPException(status_code=400, detail="User already exists")
+
+        cur.execute("""
+            SELECT id FROM user_onboarding_requestuser
+            WHERE user_phone=%s OR user_whatsapp=%s OR user_email=%s
+        """, (phone, whatsapp_number, email))
+        if cur.fetchone():
+            raise HTTPException(status_code=400, detail="Signup request already pending")
+
+        # -----------------------------
+        # Insert passenger (only case now)
+        # -----------------------------
+        hashed_password = pwd_context.hash(password[:72])  # truncate to 72 bytes
+
+        cur.execute("""
+            INSERT INTO user_onboarding_user
+            (first_name, middle_name, last_name, username, email, phone, whatsapp_number, password,
+             created_at, created_by, updated_at, updated_by, is_active, staff, railway_admin, enabled,
+             user_type_id, user_status)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW(),%s,NOW(),%s,TRUE,FALSE,FALSE,TRUE,1,'active')
+            RETURNING id, first_name, last_name, email, phone, whatsapp_number, username
+        """, (f_name, m_name, l_name, phone, email, phone, whatsapp_number, hashed_password, phone, phone))
+
+        new_user = cur.fetchone()
+        conn.commit()
+        return JSONResponse({"message": "Passenger registered successfully", "user": new_user})
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("Error during signup")
+        raise HTTPException(status_code=500, detail=f"Signup failed: {str(e)}")
+    finally:
+        conn.close()
+
+
+
+from passlib.hash import django_pbkdf2_sha256
+
+@router.post("/signin")
+async def signin(
+    phone: str = Form(...),
+    password: str = Form(...)
+):
+    """
+    Signin endpoint using mobile number and password.
+    Returns JWT token if credentials are correct.
+    """
+    conn = get_db_connection()
+    try:
+        # Fetch user by phone number
+        user = execute_query(
+            conn,
+            "SELECT * FROM user_onboarding_user WHERE phone = %s",
+            (phone,)
+        )
+
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found or invalid credentials")
+
+        # Verify password
+        if not django_pbkdf2_sha256.verify(password, user[0]['password']):
+            raise HTTPException(status_code=401, detail="Incorrect password")
+
+        # Generate JWT token
+        token = create_access_token(data={"sub": user[0]['username']})
+        return JSONResponse({"access_token": token, "token_type": "bearer"})
+
     finally:
         conn.close()
 
