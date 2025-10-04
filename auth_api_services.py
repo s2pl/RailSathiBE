@@ -105,9 +105,9 @@ pwd_context = CryptContext(schemes=["django_pbkdf2_sha256"], deprecated="auto")
 async def signup(
     f_name: str = Form(...),
     m_name: str = Form(""),
-    l_name: str = Form(...),
+    l_name: str = Form(""),
     phone: str = Form(...),
-    whatsapp_number: str = Form(...),
+    whatsapp_number: str = Form(""),
     password: str = Form(...),
     re_password: str = Form(...),
     email: str = Form("noemail@gmail.com"),
