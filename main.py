@@ -149,6 +149,7 @@ async def get_complaint(complain_id: int):
     try:
         complaint = get_complaint_by_id(complain_id)
         if not complaint:
+            logger.error(f"Complaint {complain_id} not found")
             raise HTTPException(status_code=404, detail="Complaint not found")
         
         # Wrap the complaint in the expected response format
@@ -156,6 +157,9 @@ async def get_complaint(complain_id: int):
             message="Complaint retrieved successfully",
             data=complaint
         )
+    except HTTPException as e:
+        raise e
+
     except Exception as e:
         logger.error(f"Error getting complaint {complain_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -896,10 +900,11 @@ Kindly verify the WRUR assignment to the given train depot.
     final_data["train_depot"] = train_depot_name
     return final_data
 
+from fastapi import FastAPI
+from auth_api_services import router as auth_router
+app.include_router(auth_router)
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=5002)
 
-from fastapi import FastAPI
-from auth_api_services import router as auth_router
-app.include_router(auth_router)
