@@ -1,7 +1,7 @@
 from fastapi import APIRouter, FastAPI, HTTPException, UploadFile, File, Form, Depends ,Request,Security, APIRouter
 from fastapi.responses import JSONResponse
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, date, time , timedelta
 from jose import JWTError, jwt
@@ -101,21 +101,22 @@ from passlib.context import CryptContext
 pwd_context = CryptContext(schemes=["django_pbkdf2_sha256"], deprecated="auto")
 
 
+class SignupRequest(BaseModel):
+    f_name: str
+    m_name: str | None = None
+    l_name: str | None = None
+    phone: str
+    whatsapp_number: str | None = None
+    password: str
+    re_password: str
+    email: EmailStr | None = "noemail@gmail.com"
+    division: str | None = None
+    zone: str | None = None
+    depo: str | None = None
+    emp_number: str | None = None
+
 @router.post("/signup")
-async def signup(
-    f_name: str = Form(...),
-    m_name: str = Form(""),
-    l_name: str = Form(""),
-    phone: str = Form(...),
-    whatsapp_number: str = Form(""),
-    password: str = Form(...),
-    re_password: str = Form(...),
-    email: str = Form("noemail@gmail.com"),
-    division: str = Form(None),
-    zone: str = Form(None),
-    depo: str = Form(None),
-    emp_number: str = Form(None),
-):
+async def signup(data: SignupRequest):
     conn = get_db_connection()
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -123,29 +124,27 @@ async def signup(
         # -----------------------------
         # Required fields validation
         # -----------------------------
-        required_fields = ["f_name", "l_name", "phone", "password", "re_password", "whatsapp_number"]
+        required_fields = ["f_name", "phone", "password", "re_password"]
         for field in required_fields:
-            if not locals()[field]:
+            if not getattr(data, field):
                 raise HTTPException(status_code=400, detail=f"{field} is required")
 
         # -----------------------------
         # Phone & WhatsApp validation
         # -----------------------------
-        if not re.match(r'^\d{10}$', phone) or phone.startswith("0"):
+        if not re.match(r'^\d{10}$', data.phone) or data.phone.startswith("0"):
             raise HTTPException(status_code=400, detail="Invalid phone number")
-
-        if not re.match(r'^\d{10}$', whatsapp_number) or whatsapp_number.startswith("0"):
-            raise HTTPException(status_code=400, detail="Invalid WhatsApp number")
 
         # -----------------------------
         # Password match & hash
         # -----------------------------
-        if password != re_password:
+        if data.password != data.re_password:
             raise HTTPException(status_code=400, detail="Passwords do not match")
 
         # -----------------------------
         # Generate fallback email
         # -----------------------------
+        email = data.email
         if not email or email == "noemail@gmail.com":
             ts = int(time.time())
             email = f"noemailid.sanchalak.{ts}@gmail.com"
@@ -155,22 +154,22 @@ async def signup(
         # -----------------------------
         cur.execute("""
             SELECT id FROM user_onboarding_user
-            WHERE phone=%s OR whatsapp_number=%s OR email=%s
-        """, (phone, whatsapp_number, email))
+            WHERE phone=%s
+        """, (data.phone,))
         if cur.fetchone():
             raise HTTPException(status_code=400, detail="User already exists")
 
         cur.execute("""
             SELECT id FROM user_onboarding_requestuser
-            WHERE user_phone=%s OR user_whatsapp=%s OR user_email=%s
-        """, (phone, whatsapp_number, email))
+            WHERE user_phone=%s
+        """, (data.phone,))
         if cur.fetchone():
             raise HTTPException(status_code=400, detail="Signup request already pending")
 
         # -----------------------------
         # Insert passenger (only case now)
         # -----------------------------
-        hashed_password = pwd_context.hash(password[:72])  # truncate to 72 bytes
+        hashed_password = pwd_context.hash(data.password[:72])  # truncate to 72 bytes
 
         cur.execute("""
             INSERT INTO user_onboarding_user
@@ -179,7 +178,7 @@ async def signup(
              user_type_id, user_status)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW(),%s,NOW(),%s,TRUE,FALSE,FALSE,TRUE,1,'active')
             RETURNING id, first_name, last_name, email, phone, whatsapp_number, username
-        """, (f_name, m_name, l_name, phone, email, phone, whatsapp_number, hashed_password, phone, phone))
+        """, (data.f_name, data.m_name, data.l_name, data.phone, data.email, data.phone,data.whatsapp_number, hashed_password, data.phone, data.phone))
 
         new_user = cur.fetchone()
         conn.commit()
@@ -194,14 +193,11 @@ async def signup(
         conn.close()
 
 
-
-from passlib.hash import django_pbkdf2_sha256
-
+class SigninRequest(BaseModel):
+    phone: str
+    password: str
 @router.post("/signin")
-async def signin(
-    phone: str = Form(...),
-    password: str = Form(...)
-):
+async def signin(data: SigninRequest):
     """
     Signin endpoint using mobile number and password.
     Returns JWT token if credentials are correct.
@@ -212,14 +208,14 @@ async def signin(
         user = execute_query(
             conn,
             "SELECT * FROM user_onboarding_user WHERE phone = %s",
-            (phone,)
+            (data.phone,)
         )
 
         if not user:
             raise HTTPException(status_code=401, detail="User not found or invalid credentials")
 
         # Verify password
-        if not django_pbkdf2_sha256.verify(password, user[0]['password']):
+        if not django_pbkdf2_sha256.verify(data.password, user[0]['password']):
             raise HTTPException(status_code=401, detail="Incorrect password")
 
         # Generate JWT token
