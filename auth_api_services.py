@@ -234,9 +234,11 @@ async def signin(data: SigninRequest):
             raise HTTPException(status_code=401, detail="Incorrect password")
 
         # Generate JWT token
-        token = create_refresh_token(data={"sub": user['username']})
+        refresh_token = create_refresh_token(data={"sub": user['username']})
+        access_token = create_access_token(data={"sub": user['username']})
 
-        return JSONResponse({"refresh_token": token,
+        return JSONResponse({"refresh_token": refresh_token,
+                             "access_token": access_token,
             "username": user['first_name'],
             "number": user['phone'],
             "Whatsapp_number": user['whatsapp_number'],
