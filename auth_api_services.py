@@ -40,11 +40,19 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/rs_microservice/v2/token")
 #JWT configuration
 SECRET_KEY = os.getenv("JWT_SECRET_KEY","fallback_dummy_key")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES",30))
+
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))  # short-lived
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))      # long-lived
 
 
 #JWT token generator
-def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=30)):
+def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + expires_delta
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def create_refresh_token(data: dict, expires_delta: timedelta = timedelta(days=7)):
     to_encode = data.copy()
     expire = datetime.utcnow() + expires_delta 
     to_encode.update({"exp": expire})
@@ -72,7 +80,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
 
 #Login Endpoint to get JWT token
 @router.post("/token")
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+async def token_generation(form_data: OAuth2PasswordRequestForm = Depends()):
     """Login endpoint to get JWT token"""
     conn = get_db_connection()
     try:
@@ -87,8 +95,13 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         if not django_pbkdf2_sha256.verify(form_data.password, user[0]['password']):
             raise HTTPException(status_code=401, detail="Incorrect password")
         
-        token = create_access_token(data={"sub": user[0]['username']})
-        return {"access_token": token, "token_type": "bearer"}
+        user_data = {"sub": user[0]['username']}
+        access_token = create_access_token(user_data, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+        refresh_token = create_refresh_token(user_data, timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
+
+        return {"access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_type": "bearer"}
     
     finally:
         conn.close()
@@ -178,7 +191,7 @@ async def signup(data: SignupRequest):
              user_type_id, user_status)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW(),%s,NOW(),%s,TRUE,FALSE,FALSE,TRUE,1,'active')
             RETURNING id, first_name, last_name, email, phone, whatsapp_number, username
-        """, (data.f_name, data.m_name, data.l_name, data.phone, data.email, data.phone,data.whatsapp_number, hashed_password, data.phone, data.phone))
+        """, (data.f_name, data.m_name, data.l_name, data.f_name, data.email, data.phone,data.whatsapp_number, hashed_password, data.phone, data.phone))
 
         new_user = cur.fetchone()
         conn.commit()
@@ -205,22 +218,34 @@ async def signin(data: SigninRequest):
     conn = get_db_connection()
     try:
         # Fetch user by phone number
-        user = execute_query(
+        user_list = execute_query(
             conn,
             "SELECT * FROM user_onboarding_user WHERE phone = %s",
             (data.phone,)
         )
 
-        if not user:
+        if not user_list:
             raise HTTPException(status_code=401, detail="User not found or invalid credentials")
 
+        user = user_list[0]
+
         # Verify password
-        if not django_pbkdf2_sha256.verify(data.password, user[0]['password']):
+        if not django_pbkdf2_sha256.verify(data.password, user['password']):
             raise HTTPException(status_code=401, detail="Incorrect password")
 
         # Generate JWT token
-        token = create_access_token(data={"sub": user[0]['username']})
-        return JSONResponse({"access_token": token, "token_type": "bearer"})
+        refresh_token = create_refresh_token(data={"sub": user['username']})
+        access_token = create_access_token(data={"sub": user['username']})
+
+        return JSONResponse({"refresh_token": refresh_token,
+                             "access_token": access_token,
+            "username": user['first_name'],
+            "number": user['phone'],
+            "Whatsapp_number": user['whatsapp_number'],
+            "email": user['email'],
+            "created_at": user['created_at'],
+            "token_type": "bearer"
+        })
 
     finally:
         conn.close()
