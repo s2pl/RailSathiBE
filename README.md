@@ -19,7 +19,7 @@ A FastAPI-based microservice that handles user authentication (JWT, Signup, Upda
 
 1. **Clone the repository**
  ```bash
-git clone https://github.com/s2pl/RailSathi_be.git
+git clone https://github.com/s2pl/RailSathiBE.git
 cd RailSathi_be
 ```
 
