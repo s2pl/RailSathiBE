@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from typing import List, Optional
 from pydantic import BaseModel, Field, EmailStr
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime, date, time , timedelta
+from datetime import datetime, date, time , timedelta, timezone
 from jose import JWTError, jwt
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from database import get_db_connection, execute_query_one, execute_query
@@ -17,16 +17,22 @@ from services import (
     upload_file_thread
 )
 
+import re, logging
+from psycopg2.extras import RealDictCursor
+from passlib.context import CryptContext
+
 from utils.complaint_enrichment import enrich_complaint_response_and_trigger_email
 import inspect
 import json
-   
+import time
 from database import get_db_connection, execute_query
 import os
 from dotenv import load_dotenv
 from utils.email_utils import send_plain_mail
 from auth_models import RailSathiComplainResponse
-
+import requests
+from sqlalchemy.orm import Session
+from fastapi_limiter.depends import RateLimiter
 #use router
 router = APIRouter(prefix="/rs_microservice/v2", tags=["Auth Complaint APIs"])
 
@@ -40,9 +46,13 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/rs_microservice/v2/token")
 #JWT configuration
 SECRET_KEY = os.getenv("JWT_SECRET_KEY","fallback_dummy_key")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
+API_KEY = os.getenv("TWO_FACTOR_API_KEY", "DUMMY_API_KEY")
 
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))  # short-lived
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))      # long-lived
+ENVIRONMENT = os.getenv("ENVIRONMENT", "LOCAL").upper()
+
+timestamp = datetime.utcnow()
 
 
 #JWT token generator
@@ -57,6 +67,13 @@ def create_refresh_token(data: dict, expires_delta: timedelta = timedelta(days=7
     expire = datetime.utcnow() + expires_delta 
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+if ENVIRONMENT == "LOCAL":
+    def RateLimiter(times: int, seconds: int):
+        async def dependency():
+            return
+        return Depends(dependency)
+
 
 #User authentication Dependecy
 def get_current_user(token: str = Depends(oauth2_scheme)):
@@ -81,7 +98,11 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
 #Login Endpoint to get JWT token
 @router.post("/token")
 async def token_generation(form_data: OAuth2PasswordRequestForm = Depends()):
-    """Login endpoint to get JWT token"""
+    """Login endpoint to get JWT token
+    **created by - Asad Khan**
+
+    **created on - 08 aug 2025**
+    """
     conn = get_db_connection()
     try:
         user = execute_query(
@@ -103,12 +124,9 @@ async def token_generation(form_data: OAuth2PasswordRequestForm = Depends()):
                 "refresh_token": refresh_token,
                 "token_type": "bearer"}
     
-    finally:
-        conn.close()
+    except HTTPException:
+        raise
 
-import re, time, logging
-from psycopg2.extras import RealDictCursor
-from passlib.context import CryptContext
 
 # Initialize password context for hashing
 pwd_context = CryptContext(schemes=["django_pbkdf2_sha256"], deprecated="auto")
@@ -130,6 +148,11 @@ class SignupRequest(BaseModel):
 
 @router.post("/signup")
 async def signup(data: SignupRequest):
+    """
+    **created by - Asad Khan**
+
+    **created on - 29 sep 2025**
+    """
     conn = get_db_connection()
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -202,8 +225,6 @@ async def signup(data: SignupRequest):
     except Exception as e:
         logging.exception("Error during signup")
         raise HTTPException(status_code=500, detail=f"Signup failed: {str(e)}")
-    finally:
-        conn.close()
 
 
 class SigninRequest(BaseModel):
@@ -214,8 +235,13 @@ async def signin(data: SigninRequest):
     """
     Signin endpoint using mobile number and password.
     Returns JWT token if credentials are correct.
+
+    **created by - Asad Khan**
+
+    **created on - 29 sep 2025**
     """
     conn = get_db_connection()
+
     try:
         # Fetch user by phone number
         user_list = execute_query(
@@ -246,10 +272,278 @@ async def signin(data: SigninRequest):
             "created_at": user['created_at'],
             "token_type": "bearer"
         })
+    except HTTPException:
+        raise
 
+# -----------------------------
+# Pydantic Schemas
+# -----------------------------
+class OTPRequest(BaseModel):
+    phone_number: str
+    fcm_token: Optional[str] = None
+
+
+class OTPVerifyRequest(BaseModel):
+    to: str
+    otp_code: str
+    fcm_token: Optional[str] = None
+
+# -----------------------------
+# OTP Functions
+# -----------------------------
+def send_otp(to, template_name) -> Optional[str]:
+    number = f"+91{to}"
+    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{number}/AUTOGEN/{template_name}"
+    try:
+        resp = requests.get(url, timeout=10)
+        data = resp.json()
+        if data.get("Status") == "Success":
+            session_id = data.get("Details")
+            return session_id
+        else:
+            logging.warning(f"2Factor OTP failed for {to}: {data.get('Details')}")
+            return None
+    except requests.RequestException as e:
+        logging.exception(f"Exception sending OTP to {to}: {e}")
+        return None
+
+
+def verify_otp(session_id: str, otp_code: str) -> bool:
+    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/VERIFY/{session_id}/{otp_code}"
+    try:
+        resp = requests.get(url, timeout=10)
+        data = resp.json()
+        return data.get("Status") == "Success" and data.get("Details") == "OTP Matched"
+    except requests.RequestException as e:
+        logging.exception(f"Exception verifying OTP session {session_id}: {e}")
+        return False
+
+
+# -----------------------------
+# Routes
+# -----------------------------
+@router.post("/mobile-login/request-otp", dependencies=[RateLimiter(times=10, seconds=60)])
+async def login_otp_send(data: OTPRequest):
+    """
+    **created by - Asad Khan**
+
+    **created on - 11 oct 2025**
+    """
+    TEMPLATE_NAME = "Login+via+OTP"
+    to = data.phone_number.strip()
+
+    if not to.isdigit() or len(to) != 10:
+        raise HTTPException(status_code=400, detail="Phone number must be exactly 10 digits")
+    
+    conn = get_db_connection()
+
+    user = execute_query(
+        conn,
+        "SELECT * FROM user_onboarding_user WHERE phone = %s",
+        (data.phone_number,)
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user_data = user[0]
+
+    # Check user status
+    if user_data['user_status'] in {"disabled", "suspended", "blocked"}:
+        raise HTTPException(status_code=400, detail=f"User is {user_data['user_status']}")
+
+    now = datetime.now()
+
+    # Send OTP via 2Factor
+    session_id = send_otp(to, TEMPLATE_NAME)
+    if session_id:
+        execute_query(
+            conn,
+            """INSERT INTO user_onboarding_otp (phone, otp, session_id, counter, created_at, timestamp, created_by, updated_at, updated_by)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (to, '', session_id, 0, now, now, 0, now, 0)
+        )
+        conn.commit()
+        return JSONResponse(status_code=200, content={"detail": "OTP sent successfully."})
+    else:
+        error_message = "Failed to send OTP request. Please check your number."
+        raise HTTPException(status_code=400, detail=error_message)
+
+    return {"message": "OTP sent successfully. Please check your phone."}
+
+from dateutil.parser import parse
+
+@router.post("/mobile-login/verify-otp", dependencies=[RateLimiter(times=10, seconds=60)])
+async def login_otp_verify(data: OTPVerifyRequest):
+    """
+    **created by - Asad Khan**
+
+    **created on - 11 oct 2025**
+    """
+    phone = data.to.strip()
+    otp_code = data.otp_code.strip()
+
+    if len(otp_code) != 6:
+        raise HTTPException(status_code=400, detail="OTP length should be 6")
+    
+    conn = get_db_connection()
+
+    otp_obj = execute_query(
+        conn,
+        "SELECT * FROM user_onboarding_otp WHERE phone = %s ORDER BY created_at DESC LIMIT 1",
+        (phone,)
+    )
+    if not otp_obj:
+        raise HTTPException(status_code=404, detail="OTP not found. Please generate a new OTP.")
+
+    otp_data = otp_obj[0]
+    created_at = parse(otp_data['created_at'])
+
+    now_utc = datetime.now(timezone.utc)
+
+    # Expiry and retry check
+    if now_utc > created_at + timedelta(minutes=10) or otp_data['counter'] >= 5:
+        execute_query(
+            conn,
+            "DELETE FROM user_onboarding_otp WHERE id = %s",
+            (otp_data['id'],)
+        )
+        conn.commit()
+        raise HTTPException(status_code=400, detail="OTP has expired. Please generate a new OTP.")
+
+    # Verify otp
+    if not verify_otp(otp_data['session_id'], otp_code):
+        execute_query(
+            conn,
+            "UPDATE user_onboarding_otp SET counter = counter + 1 WHERE id = %s",
+            (otp_data['id'],)
+        )
+        conn.commit()
+        raise HTTPException(status_code=400, detail="Incorrect OTP")
+
+    # OTP correct
+    user_data = execute_query(
+        conn,
+        "SELECT * FROM user_onboarding_user WHERE phone = %s",
+        (phone,)
+    )
+    if not user_data:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user = user_data[0]
+    timestamp = datetime.utcnow()
+
+    # Save FCM token if provided
+    if data.fcm_token:
+        execute_query(
+            conn,
+            "UPDATE user_onboarding_user SET fcm_token=%s, updated_at=NOW() WHERE id=%s",
+            (data.fcm_token, user['id'],)
+        )
+        conn.commit()
+
+    # Login history
+    login_history = execute_query(
+        conn,
+        "SELECT * FROM user_onboarding_loginhistory WHERE user_id = %s ORDER BY last_login DESC LIMIT 1",
+        (user['id'],)
+    )
+    if not login_history:
+        execute_query(
+            conn,
+            "INSERT INTO user_onboarding_loginhistory (user_id, last_login) VALUES (%s, %s)",
+            (user['id'], timestamp)
+        )
+        conn.commit()
+    else:
+        execute_query(
+            conn,
+            "UPDATE user_onboarding_loginhistory SET last_login = %s WHERE id = %s",
+            (timestamp, login_history[0]['id'])
+        )
+        conn.commit()
+
+    # JWT tokens
+    access_token = create_access_token({"user_id": user['id']})
+    refresh_token = create_refresh_token({"user_id": user['id']})
+
+    return JSONResponse({
+        "message": "Logged in successfully",
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "username": user['username'],
+        "phone_number": user['phone'],
+        "first_name": user['first_name'],
+        "middle_name": user['middle_name'],
+        "last_name": user['last_name'],
+        "created_at": user['created_at'],
+    })
+
+    
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+    re_new_password: str
+
+
+@router.post('/change-password')
+async def change_password(
+    data: ChangePasswordRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Change password for authenticated user
+
+    **created by - Asad Khan**
+
+    **created on - 11 oct 2025**
+    """
+    conn = get_db_connection()
+    try:
+        if not current_user or "username" not in current_user:
+            raise HTTPException(status_code=401, detail="User not authenticated")
+
+        username = current_user["username"]
+
+        # Fetch current user details
+        user_list = execute_query(
+            conn,
+            "SELECT * FROM user_onboarding_user WHERE username = %s",
+            (username,)
+        )
+        if not user_list:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user = user_list[0]
+
+        # Verify old password
+        if not django_pbkdf2_sha256.verify(data.old_password, user['password']):
+            raise HTTPException(status_code=400, detail="Old password is incorrect")
+        
+        # Check new passwords match
+        if data.new_password != data.re_new_password:
+            raise HTTPException(status_code=400, detail="New passwords do not match")
+        
+        # Hash new password and update
+        hashed_new_password = pwd_context.hash(data.new_password[:72])  # truncate to 72 bytes
+
+        execute_query(
+            conn,
+            """
+            UPDATE user_onboarding_user
+            SET password = %s, updated_at = NOW(), updated_by = %s
+            WHERE username = %s
+            """,
+            (hashed_new_password, username, username)
+        )
+
+        return {"message": "Password changed successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("Error changing password")
+        raise HTTPException(status_code=500, detail=f"Password change failed: {str(e)}")
     finally:
         conn.close()
-
 
 
 logger = logging.getLogger("main")
@@ -287,11 +581,26 @@ async def get_complaints_by_date_endpoint(
     current_user: dict = Depends(get_current_user)):
     """Get complaints by date and mobile number"""
     try:
-        # Validate date format
-        try:
-            complaint_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+        # ✅ Normalize separators (/, ., _, etc.)
+        clean_date = re.sub(r"[^0-9]", "-", date_str.strip())
+
+        # ✅ Try multiple common date formats
+        complaint_date = None
+        for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%m-%d-%Y"):
+            try:
+                complaint_date = datetime.strptime(clean_date, fmt).date()
+                break
+            except ValueError:
+                continue
+
+        if not complaint_date:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid date format. Could not parse date."
+            )
+
+        # ✅ Convert to standard YYYY-MM-DD format
+        normalized_date = complaint_date.strftime("%Y-%m-%d")
         
         if not mobile_number:
             raise HTTPException(status_code=400, detail="mobile_number parameter is required")
@@ -395,8 +704,6 @@ async def create_complaint_endpoint_threaded(
             except Exception as e:
                 logger.error(f"Error fetching depot: {str(e)}")
                 train_depot_name = ''
-            finally:
-                conn.close()
 
             # Step 2: Fetch war room user phone number
             if train_depot_name:
@@ -415,7 +722,6 @@ async def create_complaint_endpoint_threaded(
                     AND u.phone != ''
                     LIMIT 1
                 """
-                conn = get_db_connection()
                 try:
                     war_room_user_in_depot = execute_query(conn, war_room_user_query)
                     war_room_phone = war_room_user_in_depot[0]['phone'] if war_room_user_in_depot else ''

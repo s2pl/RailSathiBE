@@ -86,8 +86,13 @@ def execute_query(connection, query: str, params: Tuple = None) -> List[Dict]:
     try:
         cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute(query, params)
-        results = cursor.fetchall()
-        return serialize_rows(results)
+
+        if query.strip().lower().startswith("select"):
+            results = cursor.fetchall()
+            return serialize_rows(results)
+        else:
+            connection.commit()
+            return None
     except Exception as e:
         logger.error(f"Query execution failed: {str(e)}")
         logger.error(f"Query: {query}")
