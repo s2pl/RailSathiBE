@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, FastAPI, HTTPException, UploadFile, File, Form, Depends ,Request,Security, APIRouter
 from fastapi.responses import JSONResponse
 from typing import List, Optional
@@ -33,6 +34,9 @@ from auth_models import RailSathiComplainResponse
 import requests
 from sqlalchemy.orm import Session
 from fastapi_limiter.depends import RateLimiter
+import random
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 #use router
 router = APIRouter(prefix="/rs_microservice/v2", tags=["Auth Complaint APIs"])
 
@@ -51,6 +55,16 @@ API_KEY = os.getenv("TWO_FACTOR_API_KEY", "DUMMY_API_KEY")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))  # short-lived
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))      # long-lived
 ENVIRONMENT = os.getenv("ENVIRONMENT", "LOCAL").upper()
+
+MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
+MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
+MAIL_FROM=os.getenv("MAIL_FROM"),
+MAIL_PORT=int(os.getenv("MAIL_PORT", 587)),
+MAIL_SERVER=os.getenv("MAIL_SERVER"),
+MAIL_TLS=os.getenv("MAIL_TLS", "True") == "True",
+MAIL_SSL=os.getenv("MAIL_SSL", "False") == "True",
+USE_CREDENTIALS=True,
+
 
 timestamp = datetime.utcnow()
 
@@ -545,13 +559,175 @@ async def change_password(
     finally:
         conn.close()
 
+class EmailOTPRequest(BaseModel):
+    email: EmailStr
+
+class EmailOTPVerifyRequest(BaseModel):
+    email: EmailStr
+    otp: str
+
+@router.post("/send-email-otp") #add email in user profile
+async def send_email_otp(data: EmailOTPRequest, current_user: dict = Depends(get_current_user)):
+    """
+    **created by - Asad Khan**
+
+    **created on - 15 oct 2025**
+    """
+    conn = get_db_connection()
+    try:
+        if not current_user or "username" not in current_user:
+            raise HTTPException(status_code=401, detail="User not authenticated")
+
+        try:
+            validate_email(data.email)
+        except ValidationError:
+            raise HTTPException(status_code=400, detail="Invalid email")
+
+        #Remove any previous OTP for this email
+        execute_query(conn, "DELETE FROM user_onboarding_otp WHERE email = %s;", (data.email,))
+
+        #generate otp and session
+        otp = str(random.randint(100000, 999999))
+        session_id = str(uuid.uuid4())
+
+        execute_query(
+            conn,
+            """INSERT INTO user_onboarding_otp
+            (email, otp, session_id, counter, timestamp, created_at, created_by, updated_at, updated_by)
+            VALUES (%s, %s, %s, %s, NOW(), NOW(), %s, NOW(), %s) RETURNING id;
+            """,
+            (data.email, otp, session_id, 0, current_user["username"], current_user["username"])
+        )
+        conn.commit()
+
+        # Send email
+        subject = "Your RailSathi Email OTP"
+        message = f"""
+        Dear User,
+
+        Your OTP for email verification is: {otp}
+
+        This OTP is valid for 10 minutes.
+        """
+
+        mail_sent = send_plain_mail(subject, message, from_=os.getenv("MAIL_FROM"), to=[data.email])
+
+        if not mail_sent:
+            raise HTTPException(status_code=500, detail="Failed to send OTP email")
+
+        return {"message": "OTP sent successfully", "session_id": session_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("Error sending email OTP")
+        raise HTTPException(status_code=500, detail=f"Email OTP sending failed: {str(e)}")
+    finally:
+        conn.close()
+
+@router.post("/verify-email-otp")
+async def verify_email_otp(data: EmailOTPVerifyRequest, current_user: dict = Depends(get_current_user)):
+    """
+    **created by - Asad Khan**
+
+    **created on - 15 oct 2025**
+    """
+    conn = get_db_connection()
+    try:
+        if not current_user or "username" not in current_user:
+            raise HTTPException(status_code=401, detail="User not authenticated")
+        
+        otp_record = execute_query(
+            conn,
+            """SELECT otp, timestamp FROM user_onboarding_otp WHERE email = %s ORDER BY timestamp DESC LIMIT 1;
+            """,
+            (data.email,))
+        
+        if not otp_record:
+            raise HTTPException(status_code=404, detail="OTP record not found. Please request a new OTP.")
+        
+        otp_data = otp_record[0]
+        
+        # Handle tuple or dict results safely
+        if isinstance(otp_data, dict):
+            otp_value = otp_data["otp"]
+            otp_timestamp = otp_data["timestamp"]
+        else:
+            otp_value, otp_timestamp = otp_data
+
+        if isinstance(otp_timestamp, str):
+            otp_timestamp = datetime.fromisoformat(otp_timestamp.replace("Z", "+00:00"))
+
+        otp_timestamp = otp_timestamp.replace(tzinfo=timezone.utc) if otp_timestamp.tzinfo is None else otp_timestamp
+
+
+        now_utc = datetime.now(timezone.utc)
+        if otp_value != data.otp:
+            raise HTTPException(status_code=400, detail="Incorrect OTP")
+        
+        if now_utc > otp_timestamp + timedelta(minutes=10):
+            raise HTTPException(status_code=400, detail="OTP has expired. Please request a new OTP.")
+        
+        existing_user = execute_query(
+            conn,
+            "SELECT id FROM user_onboarding_user WHERE email = %s AND username != %s;",
+            (data.email, current_user["username"])
+        )
+
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already exists")
+
+        # Check if the current user already has this email
+        user_email_record = execute_query(
+            conn,
+            "SELECT email FROM user_onboarding_user WHERE username = %s;",
+            (current_user["username"],)
+        )
+        current_email = user_email_record[0]["email"] if user_email_record else None
+
+        if current_email == data.email:
+            return {"message": "Email already Exists"}
+
+        # Update otp record
+        execute_query(
+            conn,
+            """UPDATE user_onboarding_otp 
+            SET counter = counter + 1, updated_at = NOW(), updated_by = %s WHERE email = %s AND otp = %s;
+            """, (current_user['username'], data.email, data.otp)
+        )
+        conn.commit()
+
+        # Update user's email in user_onboarding_user
+        execute_query(
+            conn,
+            """UPDATE user_onboarding_user 
+            SET email = %s , updated_at = NOW(), updated_by = %s
+            WHERE username = %s;
+            """, (data.email, current_user["username"], current_user["username"])
+        )
+        conn.commit()
+
+        return {"message": "Email verified and updated successfully"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("Error during OTP verification")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 logger = logging.getLogger("main")
 @router.get("/complaint/get/{complain_id}", response_model=RailSathiComplainResponse)
 async def get_complaint(
     complain_id: int,
     current_user: dict = Depends(get_current_user)):
-    """Get complaint by ID"""
+    """Get complaint by ID
+
+    **created by - Asad Khan (Authentication only)**
+
+    **created on - 12 sep 2025**
+    """
     try:
         complaint = get_complaint_by_id(complain_id)
         logger.info(f"Complaint fetched: {complaint}")
@@ -579,7 +755,12 @@ async def get_complaints_by_date_endpoint(
     date_str: str,
     mobile_number: Optional[str] = None,
     current_user: dict = Depends(get_current_user)):
-    """Get complaints by date and mobile number"""
+    """Get complaints by date and mobile number
+
+    **created by - Asad Khan (Authentication only)**
+
+    **created on - 12 sep 2025**
+    """
     try:
         # ✅ Normalize separators (/, ., _, etc.)
         clean_date = re.sub(r"[^0-9]", "-", date_str.strip())
@@ -644,7 +825,12 @@ async def create_complaint_endpoint_threaded(
     berth_no: Optional[int] = Form(None),
     rail_sathi_complain_media_files: List[UploadFile] = File(default=[])
 ):
-    """Create new complaint with improved file handling"""
+    """Create new complaint with improved file handling
+
+    **created by - Asad Khan (Authentication only)**
+
+    **created on - 12 sep 2025**
+    """
     try:
         print(f"Creating complaint for user: {name}")
         print(f"Number of files received: {len(rail_sathi_complain_media_files)}")
@@ -867,7 +1053,12 @@ async def update_complaint_endpoint(
     berth_no: Optional[int] = Form(None),
     rail_sathi_complain_media_files: List[UploadFile] = File(default=[])
 ):
-    """Update complaint (partial update)"""
+    """Update complaint (partial update)
+
+    **created by - Asad Khan (Authentication only)**
+
+    **created on - 12 sep 2025**
+    """
     try:
         print(f"Updating complaint {complain_id} for user: {name}")
         print(f"Number of files received: {len(rail_sathi_complain_media_files)}")
@@ -993,7 +1184,12 @@ async def replace_complaint_endpoint(
     berth_no: Optional[int] = Form(None),
     rail_sathi_complain_media_files: List[UploadFile] = File(default=[])
 ):
-    """Replace complaint (full update)"""
+    """Replace complaint (full update)
+
+    **created by - Asad Khan (Authentication only)**
+
+    **created on - 12 sep 2025**
+    """
     try:
         print(f"Replacing complaint {complain_id} for user: {name}")
         print(f"Number of files received: {len(rail_sathi_complain_media_files)}")
@@ -1105,7 +1301,12 @@ async def delete_complaint_endpoint(
     mobile_number: str = Form(...),
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete complaint"""
+    """Delete complaint
+
+    **created by - Asad Khan (Authentication only)**
+
+    **created on - 12 sep 2025**
+    """
     try:
         print(f"Deleting complaint {complain_id} for user: {name}")
         
@@ -1144,7 +1345,12 @@ async def delete_complaint_media_endpoint(
     deleted_media_ids: List[int] = Form(...),
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete complaint media files"""
+    """Delete complaint media files
+    
+    **created by - Asad Khan (Authentication only)**
+
+    **created on - 12 sep 2025**
+    """
     try:
         print(f"Deleting media files for complaint {complain_id} for user: {name}")
         print(f"Media IDs to delete: {deleted_media_ids}")
