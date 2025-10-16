@@ -902,7 +902,9 @@ Kindly verify the WRUR assignment to the given train depot.
 
 from fastapi import FastAPI
 from auth_api_services import router as auth_router
+from user_profile import router as auth_router_user_profile
 app.include_router(auth_router)
+app.include_router(auth_router_user_profile)
 
 if __name__ == "__main__":
     import uvicorn
