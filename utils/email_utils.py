@@ -40,6 +40,9 @@ def send_plain_mail(subject: str, message: str, from_: str, to: List[str], cc: L
 
         # Send email using FastMail
         fm = FastMail(conf)
+
+        # Result container shared between threads
+        result = {"success": False, "error": None}
         
         # Handle async call when event loop is already running
         import asyncio
@@ -100,7 +103,7 @@ def send_passenger_complain_notifications(complain_details: Dict):
             WHERE ut.name IN ('war room user', 'war room user railsathi') AND '{train_depot_name}' = ANY (
                 SELECT TRIM(unnest(string_to_array(u.depo, ',')))
             )
-
+            AND u.user_status = 'enabled'
         """
         conn = get_db_connection()
         war_room_user_in_depot = execute_query(conn, war_room_user_query)
@@ -113,6 +116,7 @@ def send_passenger_complain_notifications(complain_details: Dict):
             WHERE ut.name = 's2 admin' AND '{train_depot_name}' = ANY (
                 SELECT TRIM(unnest(string_to_array(u.depo, ',')))
             )
+            AND u.user_status = 'enabled'
 
         """
         conn = get_db_connection()
@@ -126,6 +130,7 @@ def send_passenger_complain_notifications(complain_details: Dict):
             AND '{train_depot_name}' = ANY (
                 SELECT TRIM(unnest(string_to_array(u.depo, ',')))
             )
+            AND u.user_status = 'enabled'
         """
 
         railway_admin_users = execute_query(conn, railway_admin_query)
@@ -139,6 +144,7 @@ def send_passenger_complain_notifications(complain_details: Dict):
             WHERE ta.train_details IS NOT NULL 
             AND ta.train_details != '{}'
             AND ta.train_details != 'null'
+            AND u.user_status = 'enabled'
         """
         conn = get_db_connection()
         assigned_users_raw = execute_query(conn, assigned_users_query)
