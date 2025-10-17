@@ -69,26 +69,6 @@ if ENVIRONMENT == "LOCAL":
             return
         return Depends(dependency)
 
-#User authentication Dependecy
-def get_current_user(token: str = Depends(oauth2_scheme)):
-    """Check JWT token in Authorization header"""
-
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-
-        if not username:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid token"
-                )
-        return{"username": username}
-    except JWTError:
-        raise HTTPException(
-                status_code=401,
-                detail="Invalid or expired token"
-            )
-
 
 #Login Endpoint to get JWT token
 @router.post("/token")
@@ -124,6 +104,26 @@ async def token_generation(form_data: OAuth2PasswordRequestForm = Depends()):
         raise
     finally:
         conn.close()
+
+#User authentication Dependecy
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    """Check JWT token in Authorization header"""
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+
+        if not username:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+                )
+        return{"username": username}
+    except JWTError:
+        raise HTTPException(
+                status_code=401,
+                detail="Invalid or expired token"
+            )
 
 class SignupRequest(BaseModel):
     f_name: str
