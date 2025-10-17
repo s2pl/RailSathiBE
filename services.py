@@ -468,7 +468,7 @@ def get_complaints_by_date(complain_date: date,username: str):
                    t.train_name as train_detail_name, t."Depot" as train_depot
             FROM rail_sathi_railsathicomplain c
             LEFT JOIN trains_traindetails t ON c.train_id = t.id
-            WHERE c.complain_date = %s AND c.created_by = %s
+            WHERE DATE(c.complain_date) = %s AND c.created_by = %s
         """
         #complaints = execute_query(conn, query, (complain_date, mobile_number))
         complaints = execute_query(conn, query, (complain_date, username))
@@ -488,7 +488,7 @@ def get_complaints_by_date(complain_date: date,username: str):
                 media_conn = get_db_connection()
 
                 try:
-                    media_files = execute_query(conn, media_query, (complaint_id,))
+                    media_files = execute_query(media_conn, media_query, (complaint_id,))
                     complaint['rail_sathi_complain_media_files'] = media_files if media_files else []
                 except Exception as media_error:
                     logger.error(f"Error fetching media for complaint {complaint_id}: {str(media_error)}")
