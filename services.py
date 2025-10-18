@@ -485,9 +485,10 @@ def get_complaints_by_date(complain_date: date,username: str):
                     FROM rail_sathi_railsathicomplainmedia
                     WHERE complain_id = %s
                 """
-                media_conn = get_db_connection()
+                
 
                 try:
+                    media_conn = get_db_connection()
                     media_files = execute_query(media_conn, media_query, (complaint_id,))
                     complaint['rail_sathi_complain_media_files'] = media_files if media_files else []
                 except Exception as media_error:
