@@ -1,11 +1,9 @@
+import uuid
 from fastapi import APIRouter, FastAPI, HTTPException, UploadFile, File, Form, Depends ,Request,Security, APIRouter
-from fastapi.responses import JSONResponse
 from typing import List, Optional
 from pydantic import BaseModel, Field, EmailStr
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime, date, time , timedelta
-from jose import JWTError, jwt
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from datetime import datetime, date, time , timedelta, timezone
 from database import get_db_connection, execute_query_one, execute_query
 from passlib.hash import django_pbkdf2_sha256
 import asyncio
@@ -17,15 +15,24 @@ from services import (
     upload_file_thread
 )
 
+import re, logging
+from passlib.context import CryptContext
+
 from utils.complaint_enrichment import enrich_complaint_response_and_trigger_email
 import inspect
 import json
-   
+import time
 from database import get_db_connection, execute_query
 import os
 from dotenv import load_dotenv
 from utils.email_utils import send_plain_mail
 from auth_models import RailSathiComplainResponse
+import requests
+from sqlalchemy.orm import Session
+import random
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
+from user_profile import get_current_user
 
 #use router
 router = APIRouter(prefix="/rs_microservice/v2", tags=["Auth Complaint APIs"])
@@ -33,231 +40,17 @@ router = APIRouter(prefix="/rs_microservice/v2", tags=["Auth Complaint APIs"])
 #----------------------AUTHENTICATED APIs ----------------------#
 
 
-load_dotenv()
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/rs_microservice/v2/token")
-
-#JWT configuration
-SECRET_KEY = os.getenv("JWT_SECRET_KEY","fallback_dummy_key")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))  # short-lived
-REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))      # long-lived
-
-
-#JWT token generator
-def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)):
-    to_encode = data.copy()
-    expire = datetime.utcnow() + expires_delta
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
-def create_refresh_token(data: dict, expires_delta: timedelta = timedelta(days=7)):
-    to_encode = data.copy()
-    expire = datetime.utcnow() + expires_delta 
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
-#User authentication Dependecy
-def get_current_user(token: str = Depends(oauth2_scheme)):
-    """Check JWT token in Authorization header"""
-
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid token"
-                )
-        return{"username": username}
-    except JWTError:
-        raise HTTPException(
-                status_code=401,
-                detail="Invalid or expired token"
-            )
-
-
-#Login Endpoint to get JWT token
-@router.post("/token")
-async def token_generation(form_data: OAuth2PasswordRequestForm = Depends()):
-    """Login endpoint to get JWT token"""
-    conn = get_db_connection()
-    try:
-        user = execute_query(
-            conn,
-            "SELECT * FROM user_onboarding_user WHERE username = %s",
-            (form_data.username,)
-        )
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found or invalid credentials")
-        
-        if not django_pbkdf2_sha256.verify(form_data.password, user[0]['password']):
-            raise HTTPException(status_code=401, detail="Incorrect password")
-        
-        user_data = {"sub": user[0]['username']}
-        access_token = create_access_token(user_data, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-        refresh_token = create_refresh_token(user_data, timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
-
-        return {"access_token": access_token,
-                "refresh_token": refresh_token,
-                "token_type": "bearer"}
-    
-    finally:
-        conn.close()
-
-import re, time, logging
-from psycopg2.extras import RealDictCursor
-from passlib.context import CryptContext
-
-# Initialize password context for hashing
-pwd_context = CryptContext(schemes=["django_pbkdf2_sha256"], deprecated="auto")
-
-
-class SignupRequest(BaseModel):
-    f_name: str
-    m_name: str | None = None
-    l_name: str | None = None
-    phone: str
-    whatsapp_number: str | None = None
-    password: str
-    re_password: str
-    email: EmailStr | None = "noemail@gmail.com"
-    division: str | None = None
-    zone: str | None = None
-    depo: str | None = None
-    emp_number: str | None = None
-
-@router.post("/signup")
-async def signup(data: SignupRequest):
-    conn = get_db_connection()
-    try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-
-        # -----------------------------
-        # Required fields validation
-        # -----------------------------
-        required_fields = ["f_name", "phone", "password", "re_password"]
-        for field in required_fields:
-            if not getattr(data, field):
-                raise HTTPException(status_code=400, detail=f"{field} is required")
-
-        # -----------------------------
-        # Phone & WhatsApp validation
-        # -----------------------------
-        if not re.match(r'^\d{10}$', data.phone) or data.phone.startswith("0"):
-            raise HTTPException(status_code=400, detail="Invalid phone number")
-
-        # -----------------------------
-        # Password match & hash
-        # -----------------------------
-        if data.password != data.re_password:
-            raise HTTPException(status_code=400, detail="Passwords do not match")
-
-        # -----------------------------
-        # Generate fallback email
-        # -----------------------------
-        email = data.email
-        if not email or email == "noemail@gmail.com":
-            ts = int(time.time())
-            email = f"noemailid.sanchalak.{ts}@gmail.com"
-
-        # -----------------------------
-        # Duplicate checks
-        # -----------------------------
-        cur.execute("""
-            SELECT id FROM user_onboarding_user
-            WHERE phone=%s
-        """, (data.phone,))
-        if cur.fetchone():
-            raise HTTPException(status_code=400, detail="User already exists")
-
-        cur.execute("""
-            SELECT id FROM user_onboarding_requestuser
-            WHERE user_phone=%s
-        """, (data.phone,))
-        if cur.fetchone():
-            raise HTTPException(status_code=400, detail="Signup request already pending")
-
-        # -----------------------------
-        # Insert passenger (only case now)
-        # -----------------------------
-        hashed_password = pwd_context.hash(data.password[:72])  # truncate to 72 bytes
-
-        cur.execute("""
-            INSERT INTO user_onboarding_user
-            (first_name, middle_name, last_name, username, email, phone, whatsapp_number, password,
-             created_at, created_by, updated_at, updated_by, is_active, staff, railway_admin, enabled,
-             user_type_id, user_status)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW(),%s,NOW(),%s,TRUE,FALSE,FALSE,TRUE,1,'active')
-            RETURNING id, first_name, last_name, email, phone, whatsapp_number, username
-        """, (data.f_name, data.m_name, data.l_name, data.f_name, data.email, data.phone,data.whatsapp_number, hashed_password, data.phone, data.phone))
-
-        new_user = cur.fetchone()
-        conn.commit()
-        return JSONResponse({"message": "Passenger registered successfully", "user": new_user})
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logging.exception("Error during signup")
-        raise HTTPException(status_code=500, detail=f"Signup failed: {str(e)}")
-    finally:
-        conn.close()
-
-
-class SigninRequest(BaseModel):
-    phone: str
-    password: str
-@router.post("/signin")
-async def signin(data: SigninRequest):
-    """
-    Signin endpoint using mobile number and password.
-    Returns JWT token if credentials are correct.
-    """
-    conn = get_db_connection()
-    try:
-        # Fetch user by phone number
-        user_list = execute_query(
-            conn,
-            "SELECT * FROM user_onboarding_user WHERE phone = %s",
-            (data.phone,)
-        )
-
-        if not user_list:
-            raise HTTPException(status_code=401, detail="User not found or invalid credentials")
-
-        user = user_list[0]
-
-        # Verify password
-        if not django_pbkdf2_sha256.verify(data.password, user['password']):
-            raise HTTPException(status_code=401, detail="Incorrect password")
-
-        # Generate JWT token
-        refresh_token = create_refresh_token(data={"sub": user['username']})
-        access_token = create_access_token(data={"sub": user['username']})
-
-        return JSONResponse({"refresh_token": refresh_token,
-                             "access_token": access_token,
-            "username": user['first_name'],
-            "number": user['phone'],
-            "Whatsapp_number": user['whatsapp_number'],
-            "email": user['email'],
-            "created_at": user['created_at'],
-            "token_type": "bearer"
-        })
-
-    finally:
-        conn.close()
-
-
-
 logger = logging.getLogger("main")
 @router.get("/complaint/get/{complain_id}", response_model=RailSathiComplainResponse)
 async def get_complaint(
     complain_id: int,
     current_user: dict = Depends(get_current_user)):
-    """Get complaint by ID"""
+    """Get complaint by ID
+
+    **created by - Asad Khan (Authentication only)**
+
+    **created on - 12 sep 2025**
+    """
     try:
         complaint = get_complaint_by_id(complain_id)
         logger.info(f"Complaint fetched: {complaint}")
@@ -283,21 +76,42 @@ async def get_complaint(
 @router.get("/complaint/get/date/{date_str}", response_model=List[RailSathiComplainResponse])
 async def get_complaints_by_date_endpoint(
     date_str: str,
-    mobile_number: Optional[str] = None,
     current_user: dict = Depends(get_current_user)):
-    """Get complaints by date and mobile number"""
+    """Get complaints by date and mobile number
+
+    **created by - Asad Khan (Authentication only)**
+
+    **created on - 12 sep 2025**
+
+    **updated on - 16 oct 2025**
+    """
     try:
-        # Validate date format
-        try:
-            complaint_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+        # ✅ Normalize separators (/, ., _, etc.)
+        clean_date = re.sub(r"[^0-9]", "-", date_str.strip())
+
+        # ✅ Try multiple common date formats
+        complaint_date = None
+        for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%m-%d-%Y"):
+            try:
+                complaint_date = datetime.strptime(clean_date, fmt).date()
+                break
+            except ValueError:
+                continue
+
+        if not complaint_date:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid date format. Could not parse date."
+            )
         
-        if not mobile_number:
-            raise HTTPException(status_code=400, detail="mobile_number parameter is required")
+        username = current_user.get("username")
+
+        # ✅ Convert to standard YYYY-MM-DD format
+        normalized_date = complaint_date.strftime("%Y-%m-%d")
         
-        complaints = get_complaints_by_date(complaint_date, mobile_number)
-        
+        complaints = get_complaints_by_date(complaint_date, username=username)
+        logging.info(f"complaint: {complaints}")
+
         # Wrap each complaint in the expected response format
         response_list = []
         for complaint in complaints:
@@ -306,6 +120,7 @@ async def get_complaints_by_date_endpoint(
                 data=complaint
             ))
         
+        logger.info(f"Fetching complaints for date={complaint_date}")
         return response_list
         
     except HTTPException:
@@ -335,7 +150,12 @@ async def create_complaint_endpoint_threaded(
     berth_no: Optional[int] = Form(None),
     rail_sathi_complain_media_files: List[UploadFile] = File(default=[])
 ):
-    """Create new complaint with improved file handling"""
+    """Create new complaint with improved file handling
+
+    **created by - Asad Khan (Authentication only)**
+
+    **created on - 12 sep 2025**
+    """
     try:
         print(f"Creating complaint for user: {name}")
         print(f"Number of files received: {len(rail_sathi_complain_media_files)}")
@@ -395,8 +215,6 @@ async def create_complaint_endpoint_threaded(
             except Exception as e:
                 logger.error(f"Error fetching depot: {str(e)}")
                 train_depot_name = ''
-            finally:
-                conn.close()
 
             # Step 2: Fetch war room user phone number
             if train_depot_name:
@@ -415,7 +233,6 @@ async def create_complaint_endpoint_threaded(
                     AND u.phone != ''
                     LIMIT 1
                 """
-                conn = get_db_connection()
                 try:
                     war_room_user_in_depot = execute_query(conn, war_room_user_query)
                     war_room_phone = war_room_user_in_depot[0]['phone'] if war_room_user_in_depot else ''
@@ -561,7 +378,12 @@ async def update_complaint_endpoint(
     berth_no: Optional[int] = Form(None),
     rail_sathi_complain_media_files: List[UploadFile] = File(default=[])
 ):
-    """Update complaint (partial update)"""
+    """Update complaint (partial update)
+
+    **created by - Asad Khan (Authentication only)**
+
+    **created on - 12 sep 2025**
+    """
     try:
         print(f"Updating complaint {complain_id} for user: {name}")
         print(f"Number of files received: {len(rail_sathi_complain_media_files)}")
@@ -687,7 +509,12 @@ async def replace_complaint_endpoint(
     berth_no: Optional[int] = Form(None),
     rail_sathi_complain_media_files: List[UploadFile] = File(default=[])
 ):
-    """Replace complaint (full update)"""
+    """Replace complaint (full update)
+
+    **created by - Asad Khan (Authentication only)**
+
+    **created on - 12 sep 2025**
+    """
     try:
         print(f"Replacing complaint {complain_id} for user: {name}")
         print(f"Number of files received: {len(rail_sathi_complain_media_files)}")
@@ -795,25 +622,29 @@ async def replace_complaint_endpoint(
 @router.delete("/complaint/delete/{complain_id}")
 async def delete_complaint_endpoint(
     complain_id: int,
-    name: str = Form(...),
-    mobile_number: str = Form(...),
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete complaint"""
+    """Delete complaint
+
+    **created by - Asad Khan (Authentication only)**
+
+    **created on - 12 sep 2025**
+
+    **updated on - 16 oct 2025**
+    """
+    username = current_user["username"]
+
     try:
-        print(f"Deleting complaint {complain_id} for user: {name}")
+        print(f"Deleting complaint {complain_id} for user: {username}")
         
         # Check if complaint exists and validate permissions
         existing_complaint = get_complaint_by_id(complain_id)
         if not existing_complaint:
             raise HTTPException(status_code=404, detail="Complaint not found")
         
-        username = current_user["username"]
 
         # Check permissions
-        if (existing_complaint["created_by"] != username or 
-            existing_complaint["complain_status"] == "completed" or 
-            existing_complaint["mobile_number"] != mobile_number):
+        if (existing_complaint["created_by"] != username):
             raise HTTPException(status_code=403, detail="Only user who created the complaint can delete it.")
         
         # Delete complaint
@@ -838,7 +669,12 @@ async def delete_complaint_media_endpoint(
     deleted_media_ids: List[int] = Form(...),
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete complaint media files"""
+    """Delete complaint media files
+    
+    **created by - Asad Khan (Authentication only)**
+
+    **created on - 12 sep 2025**
+    """
     try:
         print(f"Deleting media files for complaint {complain_id} for user: {name}")
         print(f"Media IDs to delete: {deleted_media_ids}")

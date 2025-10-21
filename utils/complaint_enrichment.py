@@ -59,8 +59,18 @@ async def enrich_complaint_response_and_trigger_email(
 
     if not war_room_phone:
         war_room_phone = "9123183988"
-        env = os.getenv("ENV")
-        subject = f"{env or 'LOCAL'} | {train_number} ({train_depot_name}) No War Room User RailSathi(WRUR) Found !"
+        env = (os.getenv("ENV") or "LOCAL").upper()
+
+        # Build subject based on env
+        base_subject = f"{train_number} ({train_depot_name}) NO war Room User RailSathi (WRUR) Found !"
+
+        if env in ("UAT", "LOCAL"):
+            subject =f"{env} | {base_subject}"
+        elif env == "PROD":
+            subject = base_subject #Remove PROD prefix
+        else:
+            subject = f"{env} | {base_subject}"
+            
         message = f"""
 No War Room User RailSathi (WRUR) exists for PNR Number: {pnr_number} in Train Number: {train_number}
 Coach/Berth: {coach}/{berth_no} on {date_of_journey}
