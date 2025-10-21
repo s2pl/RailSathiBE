@@ -1,13 +1,10 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends ,Request,Security
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, date, time , timedelta
-from jose import JWTError, jwt
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from database import get_db_connection, execute_query_one, execute_query
-from passlib.hash import django_pbkdf2_sha256
 import asyncio
 import threading
 import logging
@@ -18,10 +15,7 @@ from services import (
 )
 
 from utils.complaint_enrichment import enrich_complaint_response_and_trigger_email
-import inspect
-import json
-   
-from database import get_db_connection, execute_query
+
 import os
 from dotenv import load_dotenv
 from utils.email_utils import send_plain_mail
