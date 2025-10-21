@@ -486,7 +486,6 @@ def get_complaints_by_date(complain_date: date,username: str):
                     WHERE complain_id = %s
                 """
                 
-
                 try:
                     media_conn = get_db_connection()
                     media_files = execute_query(media_conn, media_query, (complaint_id,))

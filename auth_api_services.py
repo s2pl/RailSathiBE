@@ -103,14 +103,17 @@ async def get_complaints_by_date_endpoint(
                 status_code=400,
                 detail="Invalid date format. Could not parse date."
             )
-        
-        username = current_user.get("username")
+
+        username = str(current_user.get("username"))
 
         # ✅ Convert to standard YYYY-MM-DD format
         normalized_date = complaint_date.strftime("%Y-%m-%d")
         
         complaints = get_complaints_by_date(complaint_date, username=username)
         logging.info(f"complaint: {complaints}")
+
+        if not complaints or len(complaints) == 0:
+            raise HTTPException(status_code=404, detail="No complaints found for the given date")
 
         # Wrap each complaint in the expected response format
         response_list = []
