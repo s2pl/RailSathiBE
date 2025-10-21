@@ -29,7 +29,7 @@ pwd_context = CryptContext(schemes=["django_pbkdf2_sha256"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/rs_microservice/v2/token")
 
 #JWT configuration
-SECRET_KEY = os.getenv("JWT_SECRET_KEY","fallback_dummy_key")
+SECRET_KEY = os.getenv("SECRET_KEY","fallback_dummy_key")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 API_KEY = os.getenv("TWO_FACTOR_API_KEY", "DUMMY_API_KEY")
 
@@ -54,13 +54,13 @@ timestamp = datetime.utcnow()
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)):
     to_encode = data.copy()
     expire = datetime.utcnow() + expires_delta
-    to_encode.update({"exp": expire, "type": "access"})
+    to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def create_refresh_token(data: dict, expires_delta: timedelta = timedelta(days=7)):
     to_encode = data.copy()
-    expire = datetime.utcnow() + expires_delta 
-    to_encode.update({"exp": expire, "type": "refresh"})
+    expire = datetime.utcnow() + expires_delta
+    to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 if ENVIRONMENT == "LOCAL":
@@ -113,7 +113,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         print("Decoded payload:", payload)
 
-        username: str = payload.get("sub")
+        username: str = payload.get("user_id") or payload.get("sub")
 
         if not username:
             raise HTTPException(
