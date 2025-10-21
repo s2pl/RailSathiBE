@@ -636,6 +636,7 @@ async def delete_complaint_endpoint(
     **updated on - 16 oct 2025**
     """
     username = current_user["username"]
+    user_id = current_user.get("user_id") #for django users
 
     try:
         print(f"Deleting complaint {complain_id} for user: {username}")
@@ -647,12 +648,12 @@ async def delete_complaint_endpoint(
         
 
         # Check permissions
-        if (existing_complaint["created_by"] != username):
+        if (existing_complaint["created_by"] not in (str(username), str(user_id))):
             raise HTTPException(status_code=403, detail="Only user who created the complaint can delete it.")
         
         # Delete complaint
         delete_complaint(complain_id)
-        print(f"Complaint {complain_id} deleted successfully")
+        print(f"Complaint {complain_id} deleted for user {username} ( user ID: {user_id}) successfully")
         
         return {"message": "Complaint deleted successfully"}
         
