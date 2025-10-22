@@ -33,6 +33,9 @@ import random
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from user_profile import get_current_user
+from fastapi.responses import JSONResponse
+from psycopg2.extras import RealDictCursor
+
 
 #use router
 router = APIRouter(prefix="/rs_microservice/v2", tags=["Auth Complaint APIs"])
@@ -725,3 +728,29 @@ def make_json_serializable(data):
         return data.isoformat()
     else:
         return data
+    
+
+#fetch train details
+
+@router.get("get/train/details/{train_no}")
+async def get_train_details(train_no: str):
+    """
+    Get train details by train number
+    **created by - Asad Khan**
+    """
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM train_details WHERE train_no = %s", (train_no,))
+        train = cur.fetchone()
+
+        if not train:
+            raise HTTPException(status_code=404, detail="Train not found")
+
+        return JSONResponse(train)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching train details: {str(e)}")
+    finally:
+        conn.close()
