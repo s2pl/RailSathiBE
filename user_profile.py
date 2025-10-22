@@ -1,5 +1,5 @@
 from database import execute_query, get_db_connection
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from fastapi import HTTPException, Depends, APIRouter
 from passlib.hash import django_pbkdf2_sha256
 from passlib.context import CryptContext
@@ -29,7 +29,7 @@ pwd_context = CryptContext(schemes=["django_pbkdf2_sha256"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/rs_microservice/v2/token")
 
 #JWT configuration
-SECRET_KEY = os.getenv("JWT_SECRET_KEY","fallback_dummy_key")
+SECRET_KEY = os.getenv("SECRET_KEY","fallback_dummy_key")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 API_KEY = os.getenv("TWO_FACTOR_API_KEY", "DUMMY_API_KEY")
 
@@ -54,13 +54,13 @@ timestamp = datetime.utcnow()
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)):
     to_encode = data.copy()
     expire = datetime.utcnow() + expires_delta
-    to_encode.update({"exp": expire, "type": "access"})
+    to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def create_refresh_token(data: dict, expires_delta: timedelta = timedelta(days=7)):
     to_encode = data.copy()
-    expire = datetime.utcnow() + expires_delta 
-    to_encode.update({"exp": expire, "type": "refresh"})
+    expire = datetime.utcnow() + expires_delta
+    to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 if ENVIRONMENT == "LOCAL":
@@ -111,7 +111,9 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
+        print("Decoded payload:", payload)
+
+        username: str = payload.get("user_id") or payload.get("sub")
 
         if not username:
             raise HTTPException(
@@ -120,6 +122,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
                 )
         return{"username": username}
     except JWTError:
+        print("JWT decode error:", JWTError)
         raise HTTPException(
                 status_code=401,
                 detail="Invalid or expired token"
@@ -477,6 +480,7 @@ class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
     re_new_password: str
+    otp_code: Optional[str] = Field(..., example="")
 
 
 @router.post('/change-password')
@@ -507,10 +511,40 @@ async def change_password(
             raise HTTPException(status_code=404, detail="User not found")
         
         user = user_list[0]
+        phone = user["phone"]
 
         # Verify old password
         if not django_pbkdf2_sha256.verify(data.old_password, user['password']):
             raise HTTPException(status_code=400, detail="Old password is incorrect")
+
+        if not data.otp_code:
+            TEMPLATE_NAME = "Change+Password"
+            session_id = send_otp(phone, TEMPLATE_NAME)
+            if not session_id:
+                raise HTTPException(status_code=400, detail="Failed to send OTP")
+
+            now = datetime.now()
+            execute_query(
+                conn,
+                """INSERT INTO user_onboarding_otp (phone, otp, session_id, counter, created_at, timestamp, created_by, updated_at, updated_by)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                (phone, '', session_id, 0, now, now, 0, now, 0)
+            )
+            conn.commit()
+            logging.info(f"send on user's phone:{phone}")
+            return {"message": "OTP sent successfully. Please verify it by sending the same API again with otp_code."}
+        
+        otp_obj = execute_query(
+            conn,
+            "SELECT * FROM user_onboarding_otp WHERE phone = %s ORDER BY created_at DESC LIMIT 1",
+            (phone,)
+        )
+        if not otp_obj:
+            raise HTTPException(status_code=404, detail="OTP not found. Please request again.")
+
+        otp_data = otp_obj[0]
+        if not verify_otp(otp_data["session_id"], data.otp_code.strip()):
+            raise HTTPException(status_code=400, detail="Invalid or expired OTP")
         
         # Check new passwords match
         if data.new_password != data.re_new_password:
@@ -528,6 +562,10 @@ async def change_password(
             """,
             (hashed_new_password, username, username)
         )
+        conn.commit()
+        
+        execute_query(conn, "DELETE FROM user_onboarding_otp WHERE id = %s", (otp_data["id"],))
+        conn.commit()
 
         return {"message": "Password changed successfully"}
 
@@ -538,6 +576,8 @@ async def change_password(
         raise HTTPException(status_code=500, detail=f"Password change failed: {str(e)}")
     finally:
         conn.close()
+
+
 
 class EmailOTPRequest(BaseModel):
     email: EmailStr

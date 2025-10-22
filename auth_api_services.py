@@ -103,14 +103,17 @@ async def get_complaints_by_date_endpoint(
                 status_code=400,
                 detail="Invalid date format. Could not parse date."
             )
-        
-        username = current_user.get("username")
+
+        username = str(current_user.get("username"))
 
         # ✅ Convert to standard YYYY-MM-DD format
         normalized_date = complaint_date.strftime("%Y-%m-%d")
         
         complaints = get_complaints_by_date(complaint_date, username=username)
         logging.info(f"complaint: {complaints}")
+
+        if not complaints or len(complaints) == 0:
+            raise HTTPException(status_code=404, detail="No complaints found for the given date")
 
         # Wrap each complaint in the expected response format
         response_list = []
@@ -633,6 +636,7 @@ async def delete_complaint_endpoint(
     **updated on - 16 oct 2025**
     """
     username = current_user["username"]
+    user_id = current_user.get("user_id") #for django users
 
     try:
         print(f"Deleting complaint {complain_id} for user: {username}")
@@ -644,12 +648,12 @@ async def delete_complaint_endpoint(
         
 
         # Check permissions
-        if (existing_complaint["created_by"] != username):
+        if (existing_complaint["created_by"] not in (str(username), str(user_id))):
             raise HTTPException(status_code=403, detail="Only user who created the complaint can delete it.")
         
         # Delete complaint
         delete_complaint(complain_id)
-        print(f"Complaint {complain_id} deleted successfully")
+        print(f"Complaint {complain_id} deleted for user {username} ( user ID: {user_id}) successfully")
         
         return {"message": "Complaint deleted successfully"}
         
