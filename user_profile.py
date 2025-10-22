@@ -49,6 +49,8 @@ USE_CREDENTIALS=True,
 
 timestamp = datetime.utcnow()
 
+blacklisted_tokens = set()
+
 
 #JWT token generator
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)):
@@ -68,6 +70,8 @@ if ENVIRONMENT == "LOCAL":
         async def dependency():
             return
         return Depends(dependency)
+else:
+    from fastapi_limiter.depends import RateLimiter
 
 
 #Login Endpoint to get JWT token
@@ -105,9 +109,18 @@ async def token_generation(form_data: OAuth2PasswordRequestForm = Depends()):
     finally:
         conn.close()
 
+def is_token_blacklisted(token: str):
+    return token in blacklisted_tokens
+
 #User authentication Dependecy
 def get_current_user(token: str = Depends(oauth2_scheme)):
     """Check JWT token in Authorization header"""
+
+    if is_token_blacklisted(token):
+        raise HTTPException(
+            status_code=401,
+            detail="Token has been revoked or logged out"
+        )
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -121,26 +134,17 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
                 detail="Invalid token"
                 )
         return{"username": username}
-    except JWTError:
-        print("JWT decode error:", JWTError)
+    except JWTError as e:
+        print("JWT decode error:", e)
         raise HTTPException(
                 status_code=401,
                 detail="Invalid or expired token"
             )
 
 class SignupRequest(BaseModel):
-    f_name: str
-    m_name: str | None = None
-    l_name: str | None = None
+    username: str
     phone: str
-    whatsapp_number: str | None = None
     password: str
-    re_password: str
-    email: EmailStr | None = "noemail@gmail.com"
-    division: str | None = None
-    zone: str | None = None
-    depo: str | None = None
-    emp_number: str | None = None
 
 @router.post("/signup")
 async def signup(data: SignupRequest):
@@ -154,73 +158,76 @@ async def signup(data: SignupRequest):
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
         # -----------------------------
+        # Normalize input
+        # -----------------------------
+        data.username = data.username.strip().lower()
+        data.phone = data.phone.strip()
+
+        # -----------------------------
         # Required fields validation
         # -----------------------------
-        required_fields = ["f_name", "phone", "password", "re_password"]
+        required_fields = ["username", "phone", "password"]
         for field in required_fields:
             if not getattr(data, field):
                 raise HTTPException(status_code=400, detail=f"{field} is required")
 
         # -----------------------------
-        # Phone & WhatsApp validation
+        # Phone Validation
         # -----------------------------
-        if not re.match(r'^\d{10}$', data.phone) or data.phone.startswith("0"):
+        if not re.match(r'^[1-9]\d{9}$', data.phone):
             raise HTTPException(status_code=400, detail="Invalid phone number")
-
-        # -----------------------------
-        # Password match & hash
-        # -----------------------------
-        if data.password != data.re_password:
-            raise HTTPException(status_code=400, detail="Passwords do not match")
-
-        # -----------------------------
-        # Generate fallback email
-        # -----------------------------
-        email = data.email
-        if not email or email == "noemail@gmail.com":
-            ts = int(time.time())
-            email = f"noemailid.sanchalak.{ts}@gmail.com"
-
+        
         # -----------------------------
         # Duplicate checks
         # -----------------------------
         cur.execute("""
             SELECT id FROM user_onboarding_user
-            WHERE phone=%s
-        """, (data.phone,))
+            WHERE phone=%s OR username=%s
+        """, (data.phone, data.username))
         if cur.fetchone():
             raise HTTPException(status_code=400, detail="User already exists")
-
-        cur.execute("""
-            SELECT id FROM user_onboarding_requestuser
-            WHERE user_phone=%s
-        """, (data.phone,))
-        if cur.fetchone():
-            raise HTTPException(status_code=400, detail="Signup request already pending")
+        
+        # -----------------------------
+        # Password Hashing
+        # -----------------------------
+        hashed_password = django_pbkdf2_sha256.hash(data.password)
 
         # -----------------------------
-        # Insert passenger (only case now)
+        # Generate fallback value for email as email is mandatory and unique field in user table
         # -----------------------------
-        hashed_password = pwd_context.hash(data.password[:72])  # truncate to 72 bytes
+        email = f"noemail.{data.phone}@gmail.com"
+        now = datetime.now(timezone.utc)
+
+        # -----------------------------
+        # Insert new user
+        # -----------------------------
 
         cur.execute("""
             INSERT INTO user_onboarding_user
-            (first_name, middle_name, last_name, username, email, phone, whatsapp_number, password,
+            (first_name,last_name, username, email, phone, password,
              created_at, created_by, updated_at, updated_by, is_active, staff, railway_admin, enabled,
              user_type_id, user_status)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW(),%s,NOW(),%s,TRUE,FALSE,FALSE,TRUE,1,'active')
-            RETURNING id, first_name, last_name, email, phone, whatsapp_number, username
-        """, (data.f_name, data.m_name, data.l_name, data.f_name, data.email, data.phone,data.whatsapp_number, hashed_password, data.phone, data.phone))
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,TRUE,FALSE,FALSE,TRUE,1,'active')
+            RETURNING id, username, phone, email
+        """, (data.username, '', data.username, email, data.phone, hashed_password, now, data.username, now, data.username))
 
         new_user = cur.fetchone()
         conn.commit()
-        return JSONResponse({"message": "Passenger registered successfully", "user": new_user})
+        return JSONResponse(
+            status_code=201,
+            content= {
+                "message": "Passenger registered successfully",
+                "user": new_user
+                }
+            )
 
     except HTTPException:
         raise
     except Exception as e:
         logging.exception("Error during signup")
         raise HTTPException(status_code=500, detail=f"Signup failed: {str(e)}")
+    finally:
+        conn.close()
 
 
 class SigninRequest(BaseModel):
@@ -259,8 +266,9 @@ async def signin(data: SigninRequest):
         refresh_token = create_refresh_token(data={"sub": user['username']})
         access_token = create_access_token(data={"sub": user['username']})
 
-        return JSONResponse({"refresh_token": refresh_token,
-                             "access_token": access_token,
+        return JSONResponse({
+            "access_token": access_token,
+            "refresh_token": refresh_token,
             "username": user['first_name'],
             "number": user['phone'],
             "Whatsapp_number": user['whatsapp_number'],
@@ -270,6 +278,18 @@ async def signin(data: SigninRequest):
         })
     except HTTPException:
         raise
+    finally:
+        conn.close()
+
+
+
+@router.post("/logout")
+async def logout(token: str = Depends(oauth2_scheme)):
+    """
+    Logout endpoint - blacklists the provided JWT token.
+    """
+    blacklisted_tokens.add(token)
+    return ({"message": "Logged out successfully."})
 
 # -----------------------------
 # Pydantic Schemas
@@ -469,11 +489,12 @@ async def login_otp_verify(data: OTPVerifyRequest):
         "access_token": access_token,
         "refresh_token": refresh_token,
         "username": user['username'],
-        "phone_number": user['phone'],
+        "number": user['phone'],
         "first_name": user['first_name'],
         "middle_name": user['middle_name'],
         "last_name": user['last_name'],
         "created_at": user['created_at'],
+        "token_type": "bearer"
     })
 
 class ChangePasswordRequest(BaseModel):
