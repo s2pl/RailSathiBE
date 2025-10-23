@@ -190,7 +190,7 @@ async def signup(data: SignupRequest):
         # -----------------------------
         # Password Hashing
         # -----------------------------
-        hashed_password = django_pbkdf2_sha256.hash(data.password)
+        hashed_password = pwd_context.hash(data.password)
 
         # -----------------------------
         # Generate fallback value for email as email is mandatory and unique field in user table
