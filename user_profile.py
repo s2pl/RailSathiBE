@@ -1,9 +1,10 @@
+import email
 from database import execute_query, get_db_connection
 from pydantic import BaseModel, EmailStr, Field
 from fastapi import HTTPException, Depends, APIRouter
 from passlib.hash import django_pbkdf2_sha256
 from passlib.context import CryptContext
-import logging
+import logging, redis
 from datetime import datetime, date, time , timedelta, timezone
 from utils.email_utils import send_plain_mail
 import random, uuid, re, os, requests, time
@@ -49,8 +50,6 @@ USE_CREDENTIALS=True,
 
 timestamp = datetime.utcnow()
 
-blacklisted_tokens = set()
-
 
 #JWT token generator
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)):
@@ -64,6 +63,20 @@ def create_refresh_token(data: dict, expires_delta: timedelta = timedelta(days=7
     expire = datetime.utcnow() + expires_delta
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+@router.post("/token/refresh")
+async def refresh_token(refresh_token: str):
+    try:
+        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub") or payload.get("user_id")
+        if not username:
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+        # generate new access token
+        access_token = create_access_token({"sub": username})
+        return {"access_token": access_token, "token_type": "bearer"}
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+
 
 if ENVIRONMENT == "LOCAL":
     def RateLimiter(times: int, seconds: int):
@@ -94,9 +107,7 @@ async def token_generation(form_data: OAuth2PasswordRequestForm = Depends()):
         
         if not django_pbkdf2_sha256.verify(form_data.password, user[0]['password']):
             raise HTTPException(status_code=401, detail="Incorrect password")
-        
-        user_data = {"sub": user[0]['username'],
-}
+        user_data = {"sub": user[0]['username']}
         access_token = create_access_token(user_data, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
         refresh_token = create_refresh_token(user_data, timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
 
@@ -109,8 +120,6 @@ async def token_generation(form_data: OAuth2PasswordRequestForm = Depends()):
     finally:
         conn.close()
 
-def is_token_blacklisted(token: str):
-    return token in blacklisted_tokens
 
 #User authentication Dependecy
 def get_current_user(token: str = Depends(oauth2_scheme)):
@@ -119,9 +128,8 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
     if is_token_blacklisted(token):
         raise HTTPException(
             status_code=401,
-            detail="Token has been revoked or logged out"
+            detail="Token has been revoked. Please log in again."
         )
-
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         print("Decoded payload:", payload)
@@ -132,8 +140,8 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
             raise HTTPException(
                 status_code=401,
                 detail="Invalid token"
-                )
-        return{"username": username}
+            )
+        return {"username": username}
     except JWTError as e:
         print("JWT decode error:", e)
         raise HTTPException(
@@ -282,14 +290,59 @@ async def signin(data: SigninRequest):
         conn.close()
 
 
+@router.get("/session-check")
+async def session_check(current_user: dict = Depends(get_current_user)):
+    conn = get_db_connection()
+    try:
+        user = execute_query(
+            conn,
+            "SELECT * FROM user_onboarding_user WHERE username = %s",
+            (current_user["username"],)
+        )
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {"message": "Session is valid", "user": user[0]}
+    finally:
+        conn.close()
+
+
+# -------------------------------------------------------------------
+# 🧩 Check if token is blacklisted
+# -------------------------------------------------------------------
+try:
+    r = redis.Redis(host=os.getenv("REDIS_HOST", "localhost"),
+    port=int(os.getenv("REDIS_PORT", 6379)),
+    db=int(os.getenv("REDIS_DB", 0)),
+    decode_responses=True)
+    r.ping()
+    logging.info("Connected to Redis successfully")
+    use_redis = True
+except redis.exceptions.ConnectionError:
+    logging.warning("Redis connection failed. Using in-memory blacklist instead.")
+    r = None
+    use_redis = False
+    blacklisted_tokens = set()
+
+def is_token_blacklisted(token: str) -> bool:
+    if use_redis and r:
+        return r.exists(f"bl_{token}")
+    else:
+        return token in blacklisted_tokens
+
 
 @router.post("/logout")
 async def logout(token: str = Depends(oauth2_scheme)):
-    """
-    Logout endpoint - blacklists the provided JWT token.
-    """
-    blacklisted_tokens.add(token)
-    return ({"message": "Logged out successfully."})
+    try:
+        if use_redis and r:
+            ttl = 60 * 60 * 24 * 7  # 7 days (same as refresh token expiry)
+            r.setex(token, ttl, "blacklisted")
+        else:
+            blacklisted_tokens.add(token)
+        logging.info(f"Token blacklisted successfully: {token}")
+        return {"message": "Logged out successfully"}
+    except Exception as e:
+        logging.exception("Error during logout", {"exception": str(e)})
+        raise HTTPException(status_code=401, detail="Logout failed")
 
 # -----------------------------
 # Pydantic Schemas
@@ -762,3 +815,65 @@ async def verify_email_otp(data: EmailOTPVerifyRequest, current_user: dict = Dep
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
+
+"""class ChangeMobileRequest(BaseModel):
+    old_mobile_number: str
+    new_mobile_number: str
+
+
+@router.post("/change-mobile/send-otp")
+async def change_mobile_number(data: ChangeMobileRequest):
+    
+    Change mobile number for authenticated user
+
+    **created by - Asad Khan**
+
+    **created on - 24 oct 2025**
+    
+    conn = get_db_connection()
+    try:
+        # Validate new mobile number
+        if not ChangeMobileRequest.data.isdigit() or len(data.new_mobile_number) != 10:
+            raise HTTPException(status_code=400, detail="Mobile number must be exactly 10 digits")
+
+        # Check if old mobile number exists
+        user_list = execute_query(
+            conn,
+            "SELECT * FROM user_onboarding_user WHERE phone = %s",
+            (data.old_mobile_number,)
+        )
+        if not user_list:
+            raise HTTPException(status_code=404, detail="Old mobile number not Exists")
+
+        # Check if new mobile number already exists
+        existing_user = execute_query(
+            conn,
+            "SELECT * FROM user_onboarding_user WHERE phone = %s",
+            (data.new_mobile_number,)
+        )
+        if existing_user:
+            raise HTTPException(status_code=400, detail="New mobile number already in use")
+
+        TEMPLATE_NAME = "Change+Mobile+Number"
+        session_id = send_otp(data.old_mobile_number, TEMPLATE_NAME)
+        # Update mobile number
+        execute_query(
+            conn,
+            
+            UPDATE user_onboarding_user
+            SET phone = %s, updated_at = NOW()
+            WHERE phone = %s
+            ,
+            (data.new_mobile_number, data.old_mobile_number)
+        )
+        conn.commit()
+
+        return {"message": "Mobile number changed successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("Error changing mobile number")
+        raise HTTPException(status_code=500, detail=f"Mobile number change failed: {str(e)}")
+    finally:
+        conn.close()"""
