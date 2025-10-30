@@ -129,20 +129,46 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
             status_code=401,
             detail="Token has been revoked. Please log in again."
         )
+
     try:
+        # Decode token first
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        print("Decoded payload:", payload)
-
-        username: str = payload.get("user_id") or payload.get("sub")
-        phone = payload.get("phone")
-        return {"username": username, "phone": phone}
-
+        logging.debug(f"Decoded payload: {payload}")
     except JWTError as e:
-        print("JWT decode error:", e)
+        logging.exception("JWT decode error")
         raise HTTPException(
-                status_code=401,
-                detail="Invalid or expired token"
-            )
+            status_code=401,
+            detail="Invalid or expired token"
+        )
+
+    # Determine identifier from token (supports both 'sub' (username) and 'user_id')
+    token_user_id = payload.get("user_id")
+    token_username = payload.get("sub")
+    phone = payload.get("phone")
+
+    if not token_user_id and not token_username and not phone:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+
+    # Fetch user from DB to check status and return authoritative user info
+    conn = get_db_connection()
+    try:
+        if token_user_id:
+            user_list = execute_query(conn, "SELECT * FROM user_onboarding_user WHERE id = %s", (token_user_id,))
+        else:
+            user_list = execute_query(conn, "SELECT * FROM user_onboarding_user WHERE username = %s", (token_username,))
+
+        user = user_list[0] if user_list else None
+
+        if user and user.get("user_status") in {"disabled", "blocked", "suspended"}:
+            raise HTTPException(status_code=403, detail="Account is inactive or disabled")
+
+        # Prefer values from DB if available, otherwise fall back to token values
+        return {
+            "username": user.get("username") if user else token_username or token_user_id,
+            "phone": user.get("phone") if user else phone
+        }
+    finally:
+        conn.close()
 
 class SignupRequest(BaseModel):
     username: str
