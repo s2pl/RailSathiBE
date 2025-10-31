@@ -10,7 +10,7 @@ import asyncio
 import threading
 import logging
 from services import (
-    create_complaint, get_complaint_by_id, get_complaints_by_date,
+    create_complaint, get_complaint_by_id, get_complaints_by_date_and_username,
     update_complaint, delete_complaint, delete_complaint_media,
     upload_file_thread
 )
@@ -80,7 +80,7 @@ async def get_complaint(
 async def get_complaints_by_date_endpoint(
     date_str: str,
     current_user: dict = Depends(get_current_user)):
-    """Get complaints by date and mobile number
+    """Get complaints by date and username
 
     **created by - Asad Khan (Authentication only)**
 
@@ -107,12 +107,12 @@ async def get_complaints_by_date_endpoint(
                 detail="Invalid date format. Could not parse date."
             )
 
-        username = str(current_user.get("username"))
+        username = str(current_user.get("username")) #get logged in user
 
         # ✅ Convert to standard YYYY-MM-DD format
         normalized_date = complaint_date.strftime("%Y-%m-%d")
         
-        complaints = get_complaints_by_date(complaint_date, username=username)
+        complaints = get_complaints_by_date_and_username(complaint_date, username=username) #username will taken from logged in user via token
         logging.info(f"complaint: {complaints}")
 
         if not complaints or len(complaints) == 0:
@@ -728,29 +728,3 @@ def make_json_serializable(data):
         return data.isoformat()
     else:
         return data
-    
-
-#fetch train details
-
-@router.get("get/train/details/{train_no}")
-async def get_train_details(train_no: str):
-    """
-    Get train details by train number
-    **created by - Asad Khan**
-    """
-    conn = get_db_connection()
-    try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT * FROM train_details WHERE train_no = %s", (train_no,))
-        train = cur.fetchone()
-
-        if not train:
-            raise HTTPException(status_code=404, detail="Train not found")
-
-        return JSONResponse(train)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching train details: {str(e)}")
-    finally:
-        conn.close()

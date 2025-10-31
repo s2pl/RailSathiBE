@@ -1,9 +1,10 @@
+import email
 from database import execute_query, get_db_connection
 from pydantic import BaseModel, EmailStr, Field
-from fastapi import HTTPException, Depends, APIRouter
+from fastapi import HTTPException, Depends, APIRouter, status
 from passlib.hash import django_pbkdf2_sha256
 from passlib.context import CryptContext
-import logging
+import logging, redis
 from datetime import datetime, date, time , timedelta, timezone
 from utils.email_utils import send_plain_mail
 import random, uuid, re, os, requests, time
@@ -18,8 +19,6 @@ from fastapi_limiter.depends import RateLimiter
 from dateutil.parser import parse
 
 
-
-pwd_context = CryptContext(schemes=["django_pbkdf2_sha256"], deprecated="auto")
 
 router = APIRouter(prefix="/rs_microservice/v2", tags=["RailSathi User Profile"])
 
@@ -48,8 +47,7 @@ USE_CREDENTIALS=True,
 
 
 timestamp = datetime.utcnow()
-
-blacklisted_tokens = set()
+logger = logging.getLogger(__name__)
 
 
 #JWT token generator
@@ -64,6 +62,20 @@ def create_refresh_token(data: dict, expires_delta: timedelta = timedelta(days=7
     expire = datetime.utcnow() + expires_delta
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+@router.post("/token/refresh")
+async def refresh_token(refresh_token: str):
+    try:
+        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub") or payload.get("user_id")
+        if not username:
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+        # generate new access token
+        access_token = create_access_token({"sub": username})
+        return {"access_token": access_token, "token_type": "bearer"}
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+
 
 if ENVIRONMENT == "LOCAL":
     def RateLimiter(times: int, seconds: int):
@@ -94,9 +106,7 @@ async def token_generation(form_data: OAuth2PasswordRequestForm = Depends()):
         
         if not django_pbkdf2_sha256.verify(form_data.password, user[0]['password']):
             raise HTTPException(status_code=401, detail="Incorrect password")
-        
-        user_data = {"sub": user[0]['username'],
-}
+        user_data = {"sub": user[0]['username'], "phone": user[0]['phone']}
         access_token = create_access_token(user_data, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
         refresh_token = create_refresh_token(user_data, timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
 
@@ -109,8 +119,6 @@ async def token_generation(form_data: OAuth2PasswordRequestForm = Depends()):
     finally:
         conn.close()
 
-def is_token_blacklisted(token: str):
-    return token in blacklisted_tokens
 
 #User authentication Dependecy
 def get_current_user(token: str = Depends(oauth2_scheme)):
@@ -119,27 +127,48 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
     if is_token_blacklisted(token):
         raise HTTPException(
             status_code=401,
-            detail="Token has been revoked or logged out"
+            detail="Token has been revoked. Please log in again."
         )
 
     try:
+        # Decode token first
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        print("Decoded payload:", payload)
-
-        username: str = payload.get("user_id") or payload.get("sub")
-
-        if not username:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid token"
-                )
-        return{"username": username}
+        logging.debug(f"Decoded payload: {payload}")
     except JWTError as e:
-        print("JWT decode error:", e)
+        logging.exception("JWT decode error")
         raise HTTPException(
-                status_code=401,
-                detail="Invalid or expired token"
-            )
+            status_code=401,
+            detail="Invalid or expired token"
+        )
+
+    # Determine identifier from token (supports both 'sub' (username) and 'user_id')
+    token_user_id = payload.get("user_id")
+    token_username = payload.get("sub")
+    phone = payload.get("phone")
+
+    if not token_user_id and not token_username and not phone:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+
+    # Fetch user from DB to check status and return authoritative user info
+    conn = get_db_connection()
+    try:
+        if token_user_id:
+            user_list = execute_query(conn, "SELECT * FROM user_onboarding_user WHERE id = %s", (token_user_id,))
+        else:
+            user_list = execute_query(conn, "SELECT * FROM user_onboarding_user WHERE username = %s", (token_username,))
+
+        user = user_list[0] if user_list else None
+
+        if user and user.get("user_status") in {"disabled", "blocked", "suspended"}:
+            raise HTTPException(status_code=403, detail="Account is inactive or disabled")
+
+        # Prefer values from DB if available, otherwise fall back to token values
+        return {
+            "username": user.get("username") if user else token_username or token_user_id,
+            "phone": user.get("phone") if user else phone
+        }
+    finally:
+        conn.close()
 
 class SignupRequest(BaseModel):
     username: str
@@ -181,11 +210,16 @@ async def signup(data: SignupRequest):
         # Duplicate checks
         # -----------------------------
         cur.execute("""
-            SELECT id FROM user_onboarding_user
+            SELECT id, user_status FROM user_onboarding_user
             WHERE phone=%s OR username=%s
         """, (data.phone, data.username))
-        if cur.fetchone():
-            raise HTTPException(status_code=400, detail="User already exists")
+        existing_user = cur.fetchone()
+
+        if existing_user:
+            if existing_user["user_status"] == "disabled":
+                raise HTTPException(status_code=400, detail="Account is disabled. Please contact support to reactivate.")
+            else:
+                raise HTTPException(status_code=400, detail="User already exists")
         
         # -----------------------------
         # Password Hashing
@@ -212,7 +246,7 @@ async def signup(data: SignupRequest):
         """, (data.username, '', data.username, email, data.phone, hashed_password, now, data.username, now, data.username))
 
         new_user = cur.fetchone()
-        conn.commit()
+
         return JSONResponse(
             status_code=201,
             content= {
@@ -257,7 +291,14 @@ async def signin(data: SigninRequest):
             raise HTTPException(status_code=401, detail="User not found or invalid credentials")
 
         user = user_list[0]
-
+        
+        status_messages = {
+            "disabled": "User account is disabled",
+            "suspended": "User account is suspended",
+            "blocked": "User account is blocked"
+        }
+        if user['user_status'] in status_messages:
+            raise HTTPException(status_code=400, detail=status_messages[user['user_status']])
         # Verify password
         if not django_pbkdf2_sha256.verify(data.password, user['password']):
             raise HTTPException(status_code=401, detail="Incorrect password")
@@ -282,14 +323,162 @@ async def signin(data: SigninRequest):
         conn.close()
 
 
+@router.get("/session-check")
+async def session_check(current_user: dict = Depends(get_current_user)):
+    conn = get_db_connection()
+    try:
+        user = execute_query(
+            conn,
+            "SELECT * FROM user_onboarding_user WHERE username = %s",
+            (current_user["username"],)
+        )
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        if user[0]['user_status'] in {"disabled", "suspended", "blocked"}:
+            raise HTTPException(status_code=400, detail=f"User is {user[0]['user_status']}")
+        return {"message": "Session is valid", "user": user[0]}
+    finally:
+        conn.close()
+
+
+# -------------------------------------------------------------------
+# 🧩 Check if token is blacklisted
+# -------------------------------------------------------------------
+try:
+    r = redis.Redis(host=os.getenv("REDIS_HOST", "localhost"),
+    port=int(os.getenv("REDIS_PORT", 6379)),
+    db=int(os.getenv("REDIS_DB", 0)),
+    decode_responses=True)
+    r.ping()
+    logging.info("Connected to Redis successfully")
+    use_redis = True
+except redis.exceptions.ConnectionError:
+    logging.warning("Redis connection failed. Using in-memory blacklist instead.")
+    r = None
+    use_redis = False
+    blacklisted_tokens = set()
+
+def is_token_blacklisted(token: str) -> bool:
+    if use_redis and r:
+        return r.exists(f"bl_{token}")
+    else:
+        return token in blacklisted_tokens
+
 
 @router.post("/logout")
 async def logout(token: str = Depends(oauth2_scheme)):
+    try:
+        if use_redis and r:
+            ttl = 60 * 60 * 24 * 7  # 7 days (same as refresh token expiry)
+            r.setex(f"bl_{token}", ttl, "blacklisted")
+        else:
+            blacklisted_tokens.add(token)
+        logging.info(f"Token blacklisted successfully: {token}")
+        return {"message": "Logged out successfully"}
+    except Exception as e:
+        logging.exception("Error during logout", {"exception": str(e)})
+        raise HTTPException(status_code=401, detail="Logout failed")
+
+
+@router.post("/dummy-deactivate-account")
+async def dummy_deactivate_account():
     """
-    Logout endpoint - blacklists the provided JWT token.
+    Dummy endpoint for testing account deactivation.
+    Always returns 200 OK response.
     """
-    blacklisted_tokens.add(token)
-    return ({"message": "Logged out successfully."})
+    return JSONResponse(
+        content={"message": "Account successfully deactivated (dummy response)"},
+        status_code=status.HTTP_200_OK
+    )
+class DeactivateAccountRequest(BaseModel):
+    phone: str
+
+@router.post("/deactivate/send-otp")
+async def send_deactivate_otp(data: DeactivateAccountRequest, current_user: dict = Depends(get_current_user)):
+    """Send OTP before deactivation"""
+    phone = data.phone
+    user_phone = current_user.get("phone")
+    username = current_user.get("username")
+
+    if not phone:
+        raise HTTPException(status_code=400, detail="Phone number required")
+
+    if not user_phone or phone != user_phone:
+        raise HTTPException(status_code=401, detail="Phone number does not match authenticated user")
+    conn = get_db_connection()
+    try:
+        user_list = execute_query(conn, """
+            SELECT id, username, user_status FROM user_onboarding_user WHERE phone = %s
+        """, (phone,))
+        user = user_list[0] if user_list else None
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        if user["user_status"] == "disabled":
+            raise HTTPException(status_code=400, detail="Account already deactivated")
+
+        session_id = send_otp(phone, "Deactivate+Account")
+        if not session_id:
+            raise HTTPException(status_code=500, detail="Failed to send OTP")
+
+        now = datetime.now(timezone.utc)
+        execute_query(conn, """
+            INSERT INTO user_onboarding_otp (phone, otp, session_id, counter, created_at, timestamp, created_by, updated_at, updated_by)
+            VALUES (%s, '', %s, 0, %s, %s, %s, %s, %s)
+        """, (phone, session_id, now, now, user["username"], now, user["username"]))
+
+        return {"message": "Deactivation OTP sent successfully", "session_id": session_id}
+    except Exception as e:
+        logger.error(f"Error during deactivation: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+    finally:
+        conn.close()
+
+class DeactivateOTPVerifyRequest(BaseModel):
+    phone: str
+    otp: str
+
+@router.post("/deactivate/verify-otp")
+async def verify_deactivate_otp(data: DeactivateOTPVerifyRequest, current_user: dict = Depends(get_current_user)):
+    """Verify OTP and deactivate account"""
+    phone = data.phone
+    otp_code = data.otp
+    if not phone or not otp_code:
+        raise HTTPException(status_code=400, detail="Phone and OTP required")
+    
+    user_phone = current_user.get("phone")
+    username = current_user.get("username")
+
+    conn = get_db_connection()
+    try:
+        otp_data = execute_query(conn, """
+            SELECT id, session_id, created_at FROM user_onboarding_otp
+            WHERE phone = %s ORDER BY created_at DESC LIMIT 1
+        """, (phone,))
+        if not otp_data:
+            raise HTTPException(status_code=404, detail="OTP not found")
+
+        record = otp_data[0]
+        if not verify_otp(record["session_id"], otp_code):
+            raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+
+        execute_query(conn, """
+            UPDATE user_onboarding_user
+            SET user_status = 'disabled', updated_at = NOW()
+            WHERE phone = %s
+        """, (phone,))
+
+        return {"message": "Account successfully deactivated"}
+    except Exception as e:
+        logger.error(f"Error during deactivation: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+    finally:
+        conn.close()
+
+
 
 # -----------------------------
 # Pydantic Schemas
@@ -380,7 +569,7 @@ async def login_otp_send(data: OTPRequest):
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
             (to, '', session_id, 0, now, now, 0, now, 0)
         )
-        conn.commit()
+
         return JSONResponse(status_code=200, content={"detail": "OTP sent successfully."})
     else:
         error_message = "Failed to send OTP request. Please check your number."
@@ -425,7 +614,7 @@ async def login_otp_verify(data: OTPVerifyRequest):
             "DELETE FROM user_onboarding_otp WHERE id = %s",
             (otp_data['id'],)
         )
-        conn.commit()
+
         raise HTTPException(status_code=400, detail="OTP has expired. Please generate a new OTP.")
 
     # Verify otp
@@ -435,7 +624,7 @@ async def login_otp_verify(data: OTPVerifyRequest):
             "UPDATE user_onboarding_otp SET counter = counter + 1 WHERE id = %s",
             (otp_data['id'],)
         )
-        conn.commit()
+
         raise HTTPException(status_code=400, detail="Incorrect OTP")
 
     # OTP correct
@@ -457,7 +646,6 @@ async def login_otp_verify(data: OTPVerifyRequest):
             "UPDATE user_onboarding_user SET fcm_token=%s, updated_at=NOW() WHERE id=%s",
             (data.fcm_token, user['id'],)
         )
-        conn.commit()
 
     # Login history
     login_history = execute_query(
@@ -471,14 +659,17 @@ async def login_otp_verify(data: OTPVerifyRequest):
             "INSERT INTO user_onboarding_loginhistory (user_id, last_login) VALUES (%s, %s)",
             (user['id'], timestamp)
         )
-        conn.commit()
+
     else:
         execute_query(
             conn,
             "UPDATE user_onboarding_loginhistory SET last_login = %s WHERE id = %s",
             (timestamp, login_history[0]['id'])
         )
-        conn.commit()
+
+    if user['user_status'] in {"disabled", "suspended", "blocked"}:
+        raise HTTPException(status_code=400, detail=f"User is {user['user_status']}")
+
 
     # JWT tokens
     access_token = create_access_token({"user_id": user['id']})
@@ -551,7 +742,7 @@ async def change_password(
                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                 (phone, '', session_id, 0, now, now, 0, now, 0)
             )
-            conn.commit()
+
             logging.info(f"send on user's phone:{phone}")
             return {"message": "OTP sent successfully. Please verify it by sending the same API again with otp_code."}
         
@@ -583,10 +774,9 @@ async def change_password(
             """,
             (hashed_new_password, username, username)
         )
-        conn.commit()
         
         execute_query(conn, "DELETE FROM user_onboarding_otp WHERE id = %s", (otp_data["id"],))
-        conn.commit()
+
 
         return {"message": "Password changed successfully"}
 
@@ -641,7 +831,7 @@ async def send_email_otp(data: EmailOTPRequest, current_user: dict = Depends(get
             """,
             (data.email, otp, session_id, 0, current_user["username"], current_user["username"])
         )
-        conn.commit()
+
 
         # Send email
         subject = "Your RailSathi Email OTP"
@@ -741,7 +931,7 @@ async def verify_email_otp(data: EmailOTPVerifyRequest, current_user: dict = Dep
             SET counter = counter + 1, updated_at = NOW(), updated_by = %s WHERE email = %s AND otp = %s;
             """, (current_user['username'], data.email, data.otp)
         )
-        conn.commit()
+
 
         # Update user's email in user_onboarding_user
         execute_query(
@@ -751,7 +941,6 @@ async def verify_email_otp(data: EmailOTPVerifyRequest, current_user: dict = Dep
             WHERE username = %s;
             """, (data.email, current_user["username"], current_user["username"])
         )
-        conn.commit()
 
         return {"message": "Email verified and updated successfully"}
     
