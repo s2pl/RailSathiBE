@@ -246,6 +246,7 @@ async def signup(data: SignupRequest):
         """, (data.username, '', data.username, email, data.phone, hashed_password, now, data.username, now, data.username))
 
         new_user = cur.fetchone()
+        conn.commit()
 
         return JSONResponse(
             status_code=201,
@@ -368,6 +369,11 @@ def is_token_blacklisted(token: str) -> bool:
 
 @router.post("/logout")
 async def logout(token: str = Depends(oauth2_scheme)):
+    """
+    **created by - Asad Khan**
+
+    **created on - 30 oct 2025**
+    """
     try:
         if use_redis and r:
             ttl = 60 * 60 * 24 * 7  # 7 days (same as refresh token expiry)
@@ -396,7 +402,12 @@ class DeactivateAccountRequest(BaseModel):
 
 @router.post("/deactivate/send-otp")
 async def send_deactivate_otp(data: DeactivateAccountRequest, current_user: dict = Depends(get_current_user)):
-    """Send OTP before deactivation"""
+    """Send OTP before deactivation
+    
+    **created by - Asad Khan**
+
+    **created on - 30 oct 2025**
+    """
     phone = data.phone
     user_phone = current_user.get("phone")
     username = current_user.get("username")
@@ -442,7 +453,12 @@ class DeactivateOTPVerifyRequest(BaseModel):
 
 @router.post("/deactivate/verify-otp")
 async def verify_deactivate_otp(data: DeactivateOTPVerifyRequest, current_user: dict = Depends(get_current_user)):
-    """Verify OTP and deactivate account"""
+    """Verify OTP and deactivate account
+    
+    **created by - Asad Khan**
+
+    **created on - 30 oct 2025**
+    """
     phone = data.phone
     otp_code = data.otp
     if not phone or not otp_code:
