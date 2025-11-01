@@ -10,7 +10,7 @@ import asyncio
 import threading
 import logging
 from services import (
-    create_complaint, get_complaint_by_id, get_complaints_by_date,
+    create_complaint, get_complaint_by_id, get_complaints_by_date_and_username,
     update_complaint, delete_complaint, delete_complaint_media,
     upload_file_thread
 )
@@ -33,6 +33,9 @@ import random
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from user_profile import get_current_user
+from fastapi.responses import JSONResponse
+from psycopg2.extras import RealDictCursor
+
 
 #use router
 router = APIRouter(prefix="/rs_microservice/v2", tags=["Auth Complaint APIs"])
@@ -77,7 +80,7 @@ async def get_complaint(
 async def get_complaints_by_date_endpoint(
     date_str: str,
     current_user: dict = Depends(get_current_user)):
-    """Get complaints by date and mobile number
+    """Get complaints by date and username
 
     **created by - Asad Khan (Authentication only)**
 
@@ -104,12 +107,12 @@ async def get_complaints_by_date_endpoint(
                 detail="Invalid date format. Could not parse date."
             )
 
-        username = str(current_user.get("username"))
+        username = str(current_user.get("username")) #get logged in user
 
         # ✅ Convert to standard YYYY-MM-DD format
         normalized_date = complaint_date.strftime("%Y-%m-%d")
         
-        complaints = get_complaints_by_date(complaint_date, username=username)
+        complaints = get_complaints_by_date_and_username(complaint_date, username=username) #username will taken from logged in user via token
         logging.info(f"complaint: {complaints}")
 
         if not complaints or len(complaints) == 0:

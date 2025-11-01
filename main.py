@@ -9,7 +9,7 @@ import asyncio
 import threading
 import logging
 from services import (
-    create_complaint, get_complaint_by_id, get_complaints_by_date,
+    create_complaint, get_complaint_by_id, get_complaints_by_date_and_mobile,
     update_complaint, delete_complaint, delete_complaint_media,
     upload_file_thread
 )
@@ -168,19 +168,12 @@ async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional
             complaint_date = datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
-        
-        if not mobile_number:
-            raise HTTPException(status_code=400, detail="mobile_number parameter is required")
-        
-        # Validate mobile number format if needed
-        if not mobile_number.strip():
-            raise HTTPException(status_code=400, detail="mobile_number cannot be empty")
-        
-        complaints = get_complaints_by_date(complaint_date, mobile_number)
-        
+
+        complaints = get_complaints_by_date_and_mobile(complaint_date, mobile_number) #mobile no is optional if give it filters by mobile number otherwise returns all complaints for that date
+
         # Handle empty results
-        if not complaints:
-            return []
+        if not complaints or len(complaints) == 0:
+            raise HTTPException(status_code=404, detail="No complaints found for the given date.")
         
         # Wrap each complaint in the expected response format
         response_list = []
