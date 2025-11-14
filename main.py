@@ -297,18 +297,17 @@ async def create_complaint_endpoint_threaded(
             # Step 2: Fetch war room user phone number
             if train_depot_name:
                 war_room_user_query = f"""
-                    SELECT u.phone
+                    SELECT DISTINCT u.phone
                     FROM user_onboarding_user u
                     JOIN user_onboarding_roles ut ON u.user_type_id = ut.id
+                    JOIN user_onboarding_user_depots ud ON ud.user_id = u.id
+                    JOIN station_depot d ON d.depot_id = ud.depot_id
                     WHERE ut.name = 'war room user railsathi'
-                    AND (
-                        u.depo = '{train_depot_name}'
-                        OR u.depo LIKE '{train_depot_name},%'
-                        OR u.depo LIKE '%,{train_depot_name},%'
-                        OR u.depo LIKE '%,{train_depot_name}'
-                    )
+                    AND d.depot_code = '{train_depot_name}'
                     AND u.phone IS NOT NULL
                     AND u.phone != ''
+                    AND u.is_active = TRUE
+                    AND u.user_status = 'enabled'
                     LIMIT 1
                 """
                 conn = get_db_connection()
@@ -821,6 +820,8 @@ async def enrich_complaint_response_and_trigger_email(
     train_depot_name = ''
     war_room_phone = ''
     
+    print(f"Enriching complaint {complain_id} for email trigger")
+    print(f"Train number: {train_number}, PNR: {pnr_number}, Coach: {coach}, Berth No: {berth_no}, Date of Journey: {date_of_journey}")
     # Step 1: Get depot info
     if train_number:
         get_depot_query = f"""
