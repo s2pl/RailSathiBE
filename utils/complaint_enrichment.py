@@ -71,18 +71,18 @@ async def enrich_complaint_response_and_trigger_email(
             subject = f"{env} | {base_subject}"
             
         message = f"""
-No War Room User RailSathi (WRUR) exists for PNR Number: {pnr_number} in Train Number: {train_number}
-Coach/Berth: {coach}/{berth_no} on {date_of_journey}
-Train Depot: {train_depot_name}
+        No War Room User RailSathi (WRUR) exists for PNR Number: {pnr_number} in Train Number: {train_number}
+        Coach/Berth: {coach}/{berth_no} on {date_of_journey}
+        Train Depot: {train_depot_name}
 
-Kindly verify the WRUR assignment to the given train depot.
-"""
+        Kindly verify the WRUR assignment to the given train depot.
+        """
         try:
             send_plain_mail(
                 subject=subject,
                 message=message,
                 from_=os.getenv("MAIL_FROM"),
-                to=["contact@suvidhaen.com"]
+                to=["harshnmishra01@gmail.com"]
             )
         except Exception as e:
             logger.error(f"[Email Error] Could not send fallback WRUR email: {str(e)}")
