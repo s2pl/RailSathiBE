@@ -138,7 +138,7 @@ def send_passenger_complain_notifications(complain_details: Dict):
 
         # Updated query to get train access users with better filtering
         assigned_users_query = """
-            SELECT u.email, u.id, u.first_name, u.last_name,u.fcm_token, ta.train_details
+            SELECT u.email, u.id, u.first_name, u.last_name,u.fcm_token,u.fcm_token_coachsathi, ta.train_details
             FROM user_onboarding_user u
             JOIN trains_trainaccess ta ON ta.user_id = u.id
             WHERE ta.train_details IS NOT NULL 
@@ -208,10 +208,6 @@ def send_passenger_complain_notifications(complain_details: Dict):
                     continue
 
 
-        # Fetching and storing the OBHS users fcm tokens
-        users_tokens = [user["fcm_token"] for user in assigned_users_list if user.get("fcm_token")]
-        
-
         # Combine all users and collect unique emails
         all_users_to_mail = war_room_user_in_depot + s2_admin_users + railway_admin_users + assigned_users_list
 
@@ -221,12 +217,19 @@ def send_passenger_complain_notifications(complain_details: Dict):
         #     print("User:", user.get("email"), "| FCM Token:", user.get("fcm_token"))
 
         # Extract valid FCM tokens
-        fcm_tokens = [user.get("fcm_token") for user in all_users_to_mail if user.get("fcm_token")]
-        fcm_tokens = list(set(fcm_tokens))  # remove duplicates
+        railsathi_tokens = [user.get("fcm_token") for user in all_users_to_mail if user.get("fcm_token")]
+        railsathi_tokens = list(set(railsathi_tokens))  # remove duplicates
 
+        coachsathi_tokens = [user.get("fcm_token_coachsathi") for user in all_users_to_mail if user.get("fcm_token_coachsathi")]
+        coachsathi_tokens = list(set(coachsathi_tokens))  # remove duplicates
+
+        fcm_tokens = {
+            "railsathi": railsathi_tokens,
+            "coachsathi": coachsathi_tokens
+        }
         # Using existing complaint data to trigger push notification for war room / admin users.
         try:
-            if fcm_tokens:
+            if fcm_tokens["railsathi"] or fcm_tokens["coachsathi"]:
                 # Build a complaint dict compatible with notification util expectations
                 complaint_for_notification = {
                     "complain_id": complain_details.get('complain_id') or complain_details.get('complaint_id'),
@@ -246,8 +249,14 @@ def send_passenger_complain_notifications(complain_details: Dict):
                 # Dispatch push notification in a background thread (non-blocking)
                 logging.debug(f"[Push][Build] Complaint notification payload: {json.dumps(complaint_for_notification, indent=2, ensure_ascii=False)}")
                 print("[DEBUG] Push Notification Payload =>", complaint_for_notification)
-                dispatched = send_passenger_complaint_push_and_in_app_in_thread(fcm_tokens, complaint_for_notification)
-                if dispatched:
+                if fcm_tokens["railsathi"]:
+                    send_passenger_complaint_push_and_in_app_in_thread(fcm_tokens["railsathi"], complaint_for_notification)
+
+                if fcm_tokens["coachsathi"]:
+                    # Use the same push utility for coachsathi tokens if a dedicated helper is not available.
+                    send_passenger_complaint_push_and_in_app_in_thread(fcm_tokens["coachsathi"], complaint_for_notification)
+                    
+                if fcm_tokens["railsathi"] or fcm_tokens["coachsathi"]:
                     logging.info(f"Push notification thread started for complaint {complaint_for_notification.get('complain_id')}")
                 else:
                     logging.warning(f"Push notification thread failed to start for complaint {complaint_for_notification.get('complain_id')}")
