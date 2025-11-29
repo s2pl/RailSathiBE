@@ -249,17 +249,22 @@ def send_passenger_complain_notifications(complain_details: Dict):
                 # Dispatch push notification in a background thread (non-blocking)
                 logging.debug(f"[Push][Build] Complaint notification payload: {json.dumps(complaint_for_notification, indent=2, ensure_ascii=False)}")
                 print("[DEBUG] Push Notification Payload =>", complaint_for_notification)
-                if fcm_tokens["railsathi"]:
-                    send_passenger_complaint_push_and_in_app_in_thread(fcm_tokens["railsathi"], complaint_for_notification)
+                if railsathi_tokens:
+                    send_passenger_complaint_push_and_in_app_in_thread(
+                        railsathi_tokens, 
+                        complaint_for_notification,
+                        product_name="railops"
+                    )
+                    logging.info(f"Push notification thread started for RailSathi complaint {complaint_for_notification.get('complain_id')}")
 
-                if fcm_tokens["coachsathi"]:
-                    # Use the same push utility for coachsathi tokens if a dedicated helper is not available.
-                    send_passenger_complaint_push_and_in_app_in_thread(fcm_tokens["coachsathi"], complaint_for_notification)
+                if coachsathi_tokens:
+                    send_passenger_complaint_push_and_in_app_in_thread(
+                        coachsathi_tokens, 
+                        complaint_for_notification,
+                        product_name="coachsathi"
+                    )
+                    logging.info(f"Push notification thread started for CoachSathi complaint {complaint_for_notification.get('complain_id')}")
                     
-                if fcm_tokens["railsathi"] or fcm_tokens["coachsathi"]:
-                    logging.info(f"Push notification thread started for complaint {complaint_for_notification.get('complain_id')}")
-                else:
-                    logging.warning(f"Push notification thread failed to start for complaint {complaint_for_notification.get('complain_id')}")
             else:
                 logging.info(f"No FCM tokens available for complaint {complain_details.get('complain_id')}")
         except Exception as push_err:
