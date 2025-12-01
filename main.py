@@ -61,58 +61,62 @@ class RailSathiComplainMediaResponse(BaseModel):
     created_by: Optional[str]
     updated_by: Optional[str]
 
-# Separate the complaint data model
 class RailSathiComplainData(BaseModel):
     complain_id: int
-    pnr_number: Optional[str]
-    is_pnr_validated: Optional[str]
-    name: Optional[str]
-    mobile_number: Optional[str]
-    complain_type: Optional[str]
-    complain_description: Optional[str]
-    complain_date: Optional[date]
+    pnr_number: Optional[str] = None
+    is_pnr_validated: Optional[str] = None
+    name: Optional[str] = None
+    mobile_number: Optional[str] = None
+    complain_type: Optional[str] = None
+    complain_description: Optional[str] = None
+    complain_date: Optional[date] = None
     complain_status: str
-    train_id: Optional[int]
-    train_number: Optional[str]
-    train_name: Optional[str]
-    coach: Optional[str]
-    berth_no: Optional[int]
+    train_id: Optional[int] = None
+    train_number: Optional[str] = None
+    train_name: Optional[str] = None
+    coach: Optional[str] = None
+    berth_no: Optional[int] = None
     created_at: datetime
-    created_by: Optional[str]
+    created_by: Optional[str] = None
     updated_at: datetime
-    updated_by: Optional[str]
-    # Add the missing fields from your actual data
-    customer_care: Optional[str]
-    train_depot: Optional[str]
-    rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse]
+    updated_by: Optional[str] = None
+    customer_care: Optional[str] = None  # KEEP this here
+    train_depot: Optional[str] = None
+    rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse] = []
     
 class RailSathiComplainGetData(BaseModel):
     complain_id: int
-    pnr_number: Optional[str]
-    is_pnr_validated: Optional[str]
-    name: Optional[str]
-    mobile_number: Optional[str]
-    complain_type: Optional[str]
-    complain_description: Optional[str]
-    complain_date: Optional[date]
+    pnr_number: Optional[str] = None
+    is_pnr_validated: Optional[str] = None
+    name: Optional[str] = None
+    mobile_number: Optional[str] = None
+    complain_type: Optional[str] = None
+    complain_description: Optional[str] = None
+    complain_date: Optional[date] = None
     complain_status: str
-    train_id: Optional[int]
-    train_number: Optional[str]
-    train_name: Optional[str]
-    coach: Optional[str]
-    berth_no: Optional[int]
+    train_id: Optional[int] = None
+    train_number: Optional[str] = None
+    train_name: Optional[str] = None
+    coach: Optional[str] = None
+    berth_no: Optional[int] = None
     created_at: datetime
-    created_by: Optional[str]
+    created_by: Optional[str] = None
     updated_at: datetime
-    updated_by: Optional[str]
-    train_depot: Optional[str]
-    rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse]
+    updated_by: Optional[str] = None
+    train_depot: Optional[str] = None
+    rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse] = []
 
 
 # Response wrapper that matches your actual API response structure
-class RailSathiComplainResponse(BaseModel):
+# For GET operations (without customer_care)
+class RailSathiComplainGetResponse(BaseModel):
     message: str
     data: RailSathiComplainGetData
+
+# For CREATE/UPDATE operations (with customer_care)
+class RailSathiComplainResponse(BaseModel):
+    message: str
+    data: RailSathiComplainData
 
 # Alternative: If you want to keep the flat structure, modify your endpoint to return:
 class RailSathiComplainFlatResponse(BaseModel):
@@ -137,29 +141,26 @@ class RailSathiComplainFlatResponse(BaseModel):
     updated_by: Optional[str]
     rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse]
 
-@app.get("/rs_microservice/complaint/get/{complain_id}", response_model=RailSathiComplainResponse)
+@app.get("/rs_microservice/complaint/get/{complain_id}", response_model=RailSathiComplainGetResponse)
 async def get_complaint(complain_id: int):
     """Get complaint by ID"""
     try:
         complaint = get_complaint_by_id(complain_id)
         if not complaint:
-            logger.error(f"Complaint {complain_id} not found")
             raise HTTPException(status_code=404, detail="Complaint not found")
         
-        # Wrap the complaint in the expected response format
-        return RailSathiComplainResponse(
+        return RailSathiComplainGetResponse(
             message="Complaint retrieved successfully",
             data=complaint
         )
     except HTTPException as e:
         raise e
-
     except Exception as e:
         logger.error(f"Error getting complaint {complain_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@app.get("/rs_microservice/complaint/get/date/{date_str}", response_model=List[RailSathiComplainResponse])
+@app.get("/rs_microservice/complaint/get/date/{date_str}", response_model=List[RailSathiComplainGetResponse])
 async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional[str] = None):
     """Get complaints by date and mobile number"""
     try:
@@ -179,11 +180,7 @@ async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional
         response_list = []
         for complaint in complaints:
             try:
-                # Ensure all required fields are present for RailSathiComplainResponse
-                if 'customer_care' not in complaint:
-                    complaint['customer_care'] = None
-                
-                response_list.append(RailSathiComplainResponse(
+                response_list.append(RailSathiComplainGetResponse(
                     message="Complaint retrieved successfully",
                     data=complaint
                 ))
@@ -193,7 +190,7 @@ async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional
                 # Add the missing field and try again
                 try:
                     complaint['customer_care'] = None
-                    response_list.append(RailSathiComplainResponse(
+                    response_list.append(RailSathiComplainGetResponse(
                         message="Complaint retrieved successfully",
                         data=complaint
                     ))
@@ -297,18 +294,17 @@ async def create_complaint_endpoint_threaded(
             # Step 2: Fetch war room user phone number
             if train_depot_name:
                 war_room_user_query = f"""
-                    SELECT u.phone
+                    SELECT DISTINCT u.phone
                     FROM user_onboarding_user u
                     JOIN user_onboarding_roles ut ON u.user_type_id = ut.id
+                    JOIN user_onboarding_user_depots ud ON ud.user_id = u.id
+                    JOIN station_depot d ON d.depot_id = ud.depot_id
                     WHERE ut.name = 'war room user railsathi'
-                    AND (
-                        u.depo = '{train_depot_name}'
-                        OR u.depo LIKE '{train_depot_name},%'
-                        OR u.depo LIKE '%,{train_depot_name},%'
-                        OR u.depo LIKE '%,{train_depot_name}'
-                    )
+                    AND d.depot_code = '{train_depot_name}'
                     AND u.phone IS NOT NULL
                     AND u.phone != ''
+                    AND u.is_active = TRUE
+                    AND u.user_status = 'enabled'
                     LIMIT 1
                 """
                 conn = get_db_connection()
@@ -420,10 +416,12 @@ async def create_complaint_endpoint_threaded(
         await asyncio.sleep(1)
         
         # Get updated complaint with media files
+        # Get updated complaint with media files
         updated_complaint = get_complaint_by_id(complain_id)
+        print(f"DEBUG: Updated complaint data: {updated_complaint}")  # ADD THIS LINE
         updated_complaint["customer_care"] = war_room_phone
         updated_complaint["train_depot"] = train_depot_name
-  
+        print(f"DEBUG: After adding fields: {updated_complaint}")  # ADD THIS LINE
 
         return {
             "message": "Complaint created successfully",
@@ -821,6 +819,8 @@ async def enrich_complaint_response_and_trigger_email(
     train_depot_name = ''
     war_room_phone = ''
     
+    print(f"Enriching complaint {complain_id} for email trigger")
+    print(f"Train number: {train_number}, PNR: {pnr_number}, Coach: {coach}, Berth No: {berth_no}, Date of Journey: {date_of_journey}")
     # Step 1: Get depot info
     if train_number:
         get_depot_query = f"""

@@ -95,48 +95,52 @@ def send_passenger_complain_notifications(complain_details: Dict):
 
         train_depot_name = train_depo
 
-        # Step 2: Fetch war room users whose `depo` matches the train depot
+        # Step 2: Fetch war room users whose depots include the train depot
         war_room_user_query = f"""
-            SELECT u.* 
+            SELECT DISTINCT u.* 
             FROM user_onboarding_user u 
             JOIN user_onboarding_roles ut ON u.user_type_id = ut.id 
-            WHERE ut.name IN ('war room user', 'war room user railsathi') AND '{train_depot_name}' = ANY (
-                SELECT TRIM(unnest(string_to_array(u.depo, ',')))
-            )
+            JOIN user_onboarding_user_depots ud ON ud.user_id = u.id
+            JOIN station_depot d ON d.depot_id = ud.depot_id
+            WHERE ut.name IN ('war room user', 'war room user railsathi')
+            AND d.depot_code = '{train_depot_name}'
             AND u.user_status = 'enabled'
         """
         conn = get_db_connection()
         war_room_user_in_depot = execute_query(conn, war_room_user_query)
-        conn.close()  
-            
+        conn.close()
+
+        # S2 Admin users query
         s2_admin_query = f"""
-            SELECT u.* 
+            SELECT DISTINCT u.* 
             FROM user_onboarding_user u 
             JOIN user_onboarding_roles ut ON u.user_type_id = ut.id 
-            WHERE ut.name = 's2 admin' AND '{train_depot_name}' = ANY (
-                SELECT TRIM(unnest(string_to_array(u.depo, ',')))
-            )
+            JOIN user_onboarding_user_depots ud ON ud.user_id = u.id
+            JOIN station_depot d ON d.depot_id = ud.depot_id
+            WHERE ut.name = 's2 admin'
+            AND d.depot_code = '{train_depot_name}'
             AND u.user_status = 'enabled'
-
         """
         conn = get_db_connection()
         s2_admin_users = execute_query(conn, s2_admin_query)
-        
+        conn.close()
+
+        # Railway admin users query
         railway_admin_query = f"""
-            SELECT u.* 
+            SELECT DISTINCT u.* 
             FROM user_onboarding_user u 
             JOIN user_onboarding_roles ut ON u.user_type_id = ut.id 
-            WHERE ut.name IN ('railway admin', 'railway officer') 
-            AND '{train_depot_name}' = ANY (
-                SELECT TRIM(unnest(string_to_array(u.depo, ',')))
-            )
+            JOIN user_onboarding_user_depots ud ON ud.user_id = u.id
+            JOIN station_depot d ON d.depot_id = ud.depot_id
+            WHERE ut.name IN ('railway admin', 'railway officer')
+            AND d.depot_code = '{train_depot_name}'
             AND u.user_status = 'enabled'
         """
-
+        conn = get_db_connection()
         railway_admin_users = execute_query(conn, railway_admin_query)
+        conn.close()
 
-
-        # Updated query to get train access users with better filtering
+        # Train access users query (no depot filtering needed here)
         assigned_users_query = """
             SELECT u.email, u.id, u.first_name, u.last_name,u.fcm_token,u.fcm_token_coachsathi, ta.train_details
             FROM user_onboarding_user u
@@ -149,7 +153,6 @@ def send_passenger_complain_notifications(complain_details: Dict):
         conn = get_db_connection()
         assigned_users_raw = execute_query(conn, assigned_users_query)
         conn.close()
-
 
         # Get train number and complaint date for filtering
         train_no = str(complain_details.get('train_no', '')).strip()

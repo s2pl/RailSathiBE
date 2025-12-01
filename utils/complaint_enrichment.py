@@ -34,18 +34,17 @@ async def enrich_complaint_response_and_trigger_email(
 
     if train_depot_name:
         war_room_user_query = f"""
-            SELECT u.phone
+            SELECT DISTINCT u.phone
             FROM user_onboarding_user u
             JOIN user_onboarding_roles ut ON u.user_type_id = ut.id
+            JOIN user_onboarding_user_depots ud ON ud.user_id = u.id
+            JOIN station_depot d ON d.depot_id = ud.depot_id
             WHERE ut.name = 'war room user railsathi'
-            AND (
-                u.depo = '{train_depot_name}'
-                OR u.depo LIKE '{train_depot_name},%'
-                OR u.depo LIKE '%,{train_depot_name},%'
-                OR u.depo LIKE '%,{train_depot_name}'
-            )
+            AND d.depot_code = '{train_depot_name}'
             AND u.phone IS NOT NULL
             AND u.phone != ''
+            AND u.is_active = TRUE
+            AND u.user_status = 'enabled'
             LIMIT 1
         """
         conn = get_db_connection()
