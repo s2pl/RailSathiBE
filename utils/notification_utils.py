@@ -24,7 +24,8 @@ def get_notification_base_url() -> str:
 
 def build_passenger_complaint_notification(
     tokens: List[str],
-    complaint: Dict[str, Any]
+    complaint: Dict[str, Any],
+    product_name: str = "railops"
 ) -> Dict[str, Any]:
     """Build push notification payload for passenger complaint.
     """
@@ -113,7 +114,8 @@ def build_passenger_complaint_notification(
         "title": _ensure_all_strings(title),
         "body": _ensure_all_strings(body),
         "data": normalized_data,
-        "notification_type": "default"
+        "notification_type": "default",
+        "product_name": product_name
     }
 
 
@@ -136,26 +138,26 @@ def send_push_notification(payload: Dict[str, Any], timeout: int = 10) -> Option
         return None
 
 
-def send_passenger_complaint_notification(tokens: List[str], complaint: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    payload = build_passenger_complaint_notification(tokens, complaint)
+def send_passenger_complaint_notification(tokens: List[str], complaint: Dict[str, Any], product_name: str = "railops") -> Optional[Dict[str, Any]]:
+    payload = build_passenger_complaint_notification(tokens, complaint, product_name)
     return send_push_notification(payload)
 
 
-def send_passenger_complaint_notification_in_thread(tokens: List[str], complaint: Dict[str, Any]) -> bool:
+def send_passenger_complaint_notification_in_thread(tokens: List[str], complaint: Dict[str, Any], product_name: str = "railops") -> bool:
     """Fire-and-forget threaded sender for passenger complaint notifications.
     Returns True if thread started. Logs result inside thread.
     """
-    payload = build_passenger_complaint_notification(tokens, complaint)
+    payload = build_passenger_complaint_notification(tokens, complaint, product_name)
 
     def _worker():
         try:
             resp = send_push_notification(payload)
             logger.info(
-                f"[Push][Thread] Complaint {payload['data'].get('complaint_id')} notification sent | resp={resp}"
+                f"[Push][Thread][{product_name}] Complaint {payload['data'].get('complaint_id')} notification sent | resp={resp}"
             )
         except Exception as e:
             logger.error(
-                f"[Push][Thread] Failed to send complaint {payload['data'].get('complaint_id')} notification: {e}"
+                f"[Push][Thread][{product_name}] Failed to send complaint {payload['data'].get('complaint_id')} notification: {e}"
             )
 
     try:
@@ -163,13 +165,13 @@ def send_passenger_complaint_notification_in_thread(tokens: List[str], complaint
         t.start()
         return True
     except Exception as e:
-        logger.error(f"[Push][Thread] Could not start push notification thread: {e}")
+        logger.error(f"[Push][Thread][{product_name}] Could not start push notification thread: {e}")
         return False
 
 
 
 # In-App Notification Helpers 
-def build_passenger_complaint_in_app_notification(tokens: List[str], complaint: Dict[str, Any]) -> Dict[str, Any]:
+def build_passenger_complaint_in_app_notification(tokens: List[str], complaint: Dict[str, Any], product_name: str = "railops") -> Dict[str, Any]:
     """Build the in-app notification payload (as required by /notification/in-app/ endpoint)
     reusing the push notification builder so that data normalization logic stays in one place.
 
@@ -180,10 +182,11 @@ def build_passenger_complaint_in_app_notification(tokens: List[str], complaint: 
         "body": str,
         "notif_type": "passenger_complaint",
         "notification_type": "passenger_complaint",
-        "extra_data": {...}  # (the data payload from push builder)
+        "extra_data": {...},  # (the data payload from push builder)
+        "product_name": str
     }
     """
-    push_payload = build_passenger_complaint_notification(tokens, complaint)
+    push_payload = build_passenger_complaint_notification(tokens, complaint, product_name)
     data = push_payload.get("data", {}) or {}
     notif_type = data.get("notification_type", "passenger_complaint")
     return {
@@ -193,6 +196,7 @@ def build_passenger_complaint_in_app_notification(tokens: List[str], complaint: 
         "notif_type": notif_type,
         "notification_type": notif_type,
         "extra_data": data,
+        "product_name": product_name
     }
 
 
@@ -216,25 +220,25 @@ def send_in_app_notification(payload: Dict[str, Any], timeout: int = 10) -> Opti
         return None
 
 
-def send_passenger_complaint_in_app_notification(tokens: List[str], complaint: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def send_passenger_complaint_in_app_notification(tokens: List[str], complaint: Dict[str, Any], product_name: str = "railops") -> Optional[Dict[str, Any]]:
     """Convenience wrapper to build & send passenger complaint in-app notification."""
-    payload = build_passenger_complaint_in_app_notification(tokens, complaint)
+    payload = build_passenger_complaint_in_app_notification(tokens, complaint, product_name)
     return send_in_app_notification(payload)
 
 
-def send_passenger_complaint_in_app_notification_in_thread(tokens: List[str], complaint: Dict[str, Any]) -> bool:
+def send_passenger_complaint_in_app_notification_in_thread(tokens: List[str], complaint: Dict[str, Any], product_name: str = "railops") -> bool:
     """Threaded fire-and-forget variant for in-app passenger complaint notification."""
-    payload = build_passenger_complaint_in_app_notification(tokens, complaint)
+    payload = build_passenger_complaint_in_app_notification(tokens, complaint, product_name)
 
     def _worker():
         try:
             resp = send_in_app_notification(payload)
             logger.info(
-                f"[InApp][Thread] Complaint {payload['extra_data'].get('complaint_id')} in-app notification sent | resp={resp}"
+                f"[InApp][Thread][{product_name}] Complaint {payload['extra_data'].get('complaint_id')} in-app notification sent | resp={resp}"
             )
         except Exception as e:
             logger.error(
-                f"[InApp][Thread] Failed to send complaint {payload['extra_data'].get('complaint_id')} in-app notification: {e}"
+                f"[InApp][Thread][{product_name}] Failed to send complaint {payload['extra_data'].get('complaint_id')} in-app notification: {e}"
             )
 
     try:
@@ -242,14 +246,14 @@ def send_passenger_complaint_in_app_notification_in_thread(tokens: List[str], co
         t.start()
         return True
     except Exception as e:
-        logger.error(f"[InApp][Thread] Could not start in-app notification thread: {e}")
+        logger.error(f"[InApp][Thread][{product_name}] Could not start in-app notification thread: {e}")
         return False
 
 
 
 # Combined Push + In-App      
 
-def send_passenger_complaint_push_and_in_app(tokens: List[str], complaint: Dict[str, Any]) -> Dict[str, Any]:
+def send_passenger_complaint_push_and_in_app(tokens: List[str], complaint: Dict[str, Any], product_name: str = "railops") -> Dict[str, Any]:
     """Send BOTH push and in-app notifications for a passenger complaint.
 
     Returns a dict summarizing results:
@@ -259,8 +263,8 @@ def send_passenger_complaint_push_and_in_app(tokens: List[str], complaint: Dict[
         "success": bool  # True if at least one succeeded
     }
     """
-    push_payload = build_passenger_complaint_notification(tokens, complaint)
-    in_app_payload = build_passenger_complaint_in_app_notification(tokens, complaint)
+    push_payload = build_passenger_complaint_notification(tokens, complaint, product_name)
+    in_app_payload = build_passenger_complaint_in_app_notification(tokens, complaint, product_name)
 
     push_resp = send_push_notification(push_payload)
     in_app_resp = send_in_app_notification(in_app_payload)
@@ -268,29 +272,29 @@ def send_passenger_complaint_push_and_in_app(tokens: List[str], complaint: Dict[
     success = any(r is not None for r in (push_resp, in_app_resp))
     if not success:
         logger.error(
-            f"[Combined] Failed to send both push and in-app for complaint {in_app_payload['extra_data'].get('complaint_id')}"  # type: ignore
+            f"[Combined][{product_name}] Failed to send both push and in-app for complaint {in_app_payload['extra_data'].get('complaint_id')}"  # type: ignore
         )
     else:
         logger.info(
-            f"[Combined] Complaint {in_app_payload['extra_data'].get('complaint_id')} push={push_resp is not None} in_app={in_app_resp is not None}"  # type: ignore
+            f"[Combined][{product_name}] Complaint {in_app_payload['extra_data'].get('complaint_id')} push={push_resp is not None} in_app={in_app_resp is not None}"  # type: ignore
         )
 
     return {"push": push_resp, "in_app": in_app_resp, "success": success}
 
 
-def send_passenger_complaint_push_and_in_app_in_thread(tokens: List[str], complaint: Dict[str, Any]) -> bool:
+def send_passenger_complaint_push_and_in_app_in_thread(tokens: List[str], complaint: Dict[str, Any], product_name: str = "railops") -> bool:
     """Threaded variant: dispatch both push and in-app notifications in background.
     Returns True if thread started.
     """
     def _worker():
         try:
-            result = send_passenger_complaint_push_and_in_app(tokens, complaint)
+            result = send_passenger_complaint_push_and_in_app(tokens, complaint, product_name)
             logger.info(
-                f"[Combined][Thread] Complaint notification dispatched result={result}"  # noqa: E501
+                f"[Combined][Thread][{product_name}] Complaint notification dispatched result={result}"  # noqa: E501
             )
         except Exception as e:
             logger.error(
-                f"[Combined][Thread] Failed to send combined notifications: {e}"
+                f"[Combined][Thread][{product_name}] Failed to send combined notifications: {e}"
             )
 
     try:
@@ -298,7 +302,7 @@ def send_passenger_complaint_push_and_in_app_in_thread(tokens: List[str], compla
         t.start()
         return True
     except Exception as e:
-        logger.error(f"[Combined][Thread] Could not start combined notification thread: {e}")
+        logger.error(f"[Combined][Thread][{product_name}] Could not start combined notification thread: {e}")
         return False
 
 __all__ = [
