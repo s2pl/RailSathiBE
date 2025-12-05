@@ -33,7 +33,7 @@ ALGORITHM = os.getenv("ALGORITHM", "HS256")
 API_KEY = os.getenv("TWO_FACTOR_API_KEY", "DUMMY_API_KEY")
 
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))  # short-lived
-REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))      # long-lived
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 30*24*60*60))  # long-lived
 ENVIRONMENT = os.getenv("ENVIRONMENT", "LOCAL").upper()
 
 MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
@@ -57,7 +57,7 @@ def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-def create_refresh_token(data: dict, expires_delta: timedelta = timedelta(days=7)):
+def create_refresh_token(data: dict, expires_delta: timedelta = timedelta(days=30)):
     to_encode = data.copy()
     expire = datetime.utcnow() + expires_delta
     to_encode.update({"exp": expire})
@@ -376,7 +376,7 @@ async def logout(token: str = Depends(oauth2_scheme)):
     """
     try:
         if use_redis and r:
-            ttl = 60 * 60 * 24 * 7  # 7 days (same as refresh token expiry)
+            ttl = 60 * 60 * 24 * 30  # 30 days (same as refresh token expiry)
             r.setex(f"bl_{token}", ttl, "blacklisted")
         else:
             blacklisted_tokens.add(token)
