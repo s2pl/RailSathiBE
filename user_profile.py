@@ -32,47 +32,65 @@ SECRET_KEY = os.getenv("SECRET_KEY","fallback_dummy_key")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 API_KEY = os.getenv("TWO_FACTOR_API_KEY", "DUMMY_API_KEY")
 
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))  # short-lived
-REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 30*24*60*60))  # long-lived
+ACCESS_TOKEN_EXPIRE_DAYS = int(os.getenv("ACCESS_TOKEN_EXPIRE_DAYS", 90))  # short-lived
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 180))  # long-lived
 ENVIRONMENT = os.getenv("ENVIRONMENT", "LOCAL").upper()
 
-MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
-MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
-MAIL_FROM=os.getenv("MAIL_FROM"),
-MAIL_PORT=int(os.getenv("MAIL_PORT", 587)),
-MAIL_SERVER=os.getenv("MAIL_SERVER"),
-MAIL_TLS=os.getenv("MAIL_TLS", "True") == "True",
-MAIL_SSL=os.getenv("MAIL_SSL", "False") == "True",
-USE_CREDENTIALS=True,
+MAIL_USERNAME=os.getenv("MAIL_USERNAME")
+MAIL_PASSWORD=os.getenv("MAIL_PASSWORD")
+MAIL_FROM=os.getenv("MAIL_FROM")
+MAIL_PORT=int(os.getenv("MAIL_PORT", 587))
+MAIL_SERVER=os.getenv("MAIL_SERVER")
+MAIL_TLS=os.getenv("MAIL_TLS", "True") == "True"
+MAIL_SSL=os.getenv("MAIL_SSL", "False") == "True"
+USE_CREDENTIALS=True
 
 
 timestamp = datetime.utcnow()
 logger = logging.getLogger(__name__)
 
+blacklisted_tokens: set = set()
+
+
 
 #JWT token generator
-def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)):
+def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + expires_delta
-    to_encode.update({"exp": expire})
+    expire = datetime.utcnow() + (expires_delta or timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS))
+    to_encode.update({"exp": expire, "type": "access"})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-def create_refresh_token(data: dict, expires_delta: timedelta = timedelta(days=30)):
+def create_refresh_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + expires_delta
-    to_encode.update({"exp": expire})
+    expire = datetime.utcnow() + (expires_delta or timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
+    to_encode.update({"exp": expire, "type": "refresh"})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+class TokenRefreshRequest(BaseModel):
+    refresh_token: str
 
 @router.post("/token/refresh")
-async def refresh_token(refresh_token: str):
+async def refresh_token(data: TokenRefreshRequest):
+    refresh_token = data.refresh_token
     try:
+        if refresh_token in blacklisted_tokens:
+            raise HTTPException(status_code=401, detail="Token is blacklisted")
+
         payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+
         username = payload.get("sub") or payload.get("user_id")
         if not username:
             raise HTTPException(status_code=401, detail="Invalid refresh token")
         # generate new access token
-        access_token = create_access_token({"sub": username})
-        return {"access_token": access_token, "token_type": "bearer"}
+        new_access_token = create_access_token({"sub": username})
+        new_refresh_token = create_refresh_token({"sub": username})
+
+        blacklisted_tokens.add(refresh_token)
+
+        return {"access_token": new_access_token, "refresh_token": new_refresh_token, "token_type": "bearer"}
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
@@ -107,8 +125,8 @@ async def token_generation(form_data: OAuth2PasswordRequestForm = Depends()):
         if not django_pbkdf2_sha256.verify(form_data.password, user[0]['password']):
             raise HTTPException(status_code=401, detail="Incorrect password")
         user_data = {"sub": user[0]['username'], "phone": user[0]['phone']}
-        access_token = create_access_token(user_data, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-        refresh_token = create_refresh_token(user_data, timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
+        access_token = create_access_token(user_data)
+        refresh_token = create_refresh_token(user_data)
 
         return {"access_token": access_token,
                 "refresh_token": refresh_token,
