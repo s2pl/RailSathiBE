@@ -9,7 +9,7 @@ from passlib.hash import django_pbkdf2_sha256
 import asyncio
 import threading
 import logging
-from services import (
+from services.unauth_api_services import (
     create_complaint, get_complaint_by_id, get_complaints_by_date_and_username,
     update_complaint, delete_complaint, delete_complaint_media,
     upload_file_thread
@@ -32,7 +32,7 @@ from sqlalchemy.orm import Session
 import random
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
-from user_profile import get_current_user
+from services.user_profile_services import get_current_user
 from fastapi.responses import JSONResponse
 from psycopg2.extras import RealDictCursor
 

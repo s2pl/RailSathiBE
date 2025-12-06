@@ -3,7 +3,7 @@ import os
 import logging
 from database import get_db_connection, execute_query
 from utils.email_utils import send_plain_mail
-from services import get_complaint_by_id
+from services.unauth_api_services import get_complaint_by_id
 
 logger = logging.getLogger(__name__)
 
