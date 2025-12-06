@@ -162,7 +162,7 @@ async def get_complaint(complain_id: int):
 
 @app.get("/rs_microservice/complaint/get/date/{date_str}", response_model=List[RailSathiComplainGetResponse])
 async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional[str] = None):
-    """Get complaints by date and mobile number"""
+    """Get complaints by date and mobile number is optional"""
     try:
         # Validate date format
         try:

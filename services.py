@@ -455,10 +455,40 @@ def get_complaint_by_id(complain_id: int):
 
 
 #def get_complaints_by_date(complain_date: date, mobile_number: str):
-def get_complaints_by_date_and_username(complain_date: date, username: str): #for authenticated users
-    """Get complaints by date and username"""
+def get_complaints_by_date_username_depot(complain_create_date: date, username: str): #for authenticated users
+    """Get complaints by date, username and depot (AUTHENTICATED USERS)"""
     conn = get_db_connection()
     try:
+        user_depots_query = """
+            SELECT d.depot_code
+            FROM user_onboarding_user u
+            INNER JOIN user_onboarding_user_depots ud ON u.id = ud.user_id
+            INNER JOIN station_depot d ON ud.depot_id = d.depot_id
+            WHERE u.username = %s
+        """
+
+        user_depots_result = execute_query(conn, user_depots_query, (username,))
+
+        if not user_depots_result:
+            logger.info(f"No depots found for username: {username}")
+            return []
+        
+        depot_codes = [depot["depot_code"] for depot in user_depots_result]
+        logger.info(f"User {username} has access to depots: {depot_codes}")
+
+        train_numbers_query = """
+            SELECT DISTINCT train_no
+            FROM trains_traindetails
+            WHERE "Depot" = ANY(%s)
+        """
+        train_numbers_result = execute_query(conn, train_numbers_query, (depot_codes,))
+
+        if not train_numbers_result:
+            logger.info(f"No trains found for depots: {depot_codes}")
+            return []
+
+        train_numbers = [str(train["train_no"]) for train in train_numbers_result]
+
         # Fixed query - using train_id instead of train.id for the foreign key
         query = """
             SELECT c.complain_id, c.pnr_number, c.is_pnr_validated, c.name, c.mobile_number,
@@ -468,10 +498,10 @@ def get_complaints_by_date_and_username(complain_date: date, username: str): #fo
                    t.train_name as train_detail_name, t."Depot" as train_depot
             FROM rail_sathi_railsathicomplain c
             LEFT JOIN trains_traindetails t ON c.train_id = t.id
-            WHERE DATE(c.complain_date) = %s AND c.created_by = %s
+            WHERE DATE(c.created_at) = %s AND CAST(c.train_number AS TEXT) = ANY(%s)
         """
         #complaints = execute_query(conn, query, (complain_date, mobile_number))
-        complaints = execute_query(conn, query, (complain_date, username))
+        complaints = execute_query(conn, query, (complain_create_date, train_numbers))
         if not complaints:
             return []
         
@@ -503,27 +533,25 @@ def get_complaints_by_date_and_username(complain_date: date, username: str): #fo
             train_number = complaint.get('train_number')
             if train_number:
                 get_depot_query = f"""
-                    SELECT "Depot" FROM trains_traindetails 
-                    WHERE train_no = '{train_number}' LIMIT 1
+                    SELECT "Depot", train_name FROM trains_traindetails 
+                    WHERE train_no = %s LIMIT 1
                 """
-                
-                get_train_name_query = f"""
-                    SELECT train_name FROM trains_traindetails 
-                    WHERE train_no = '{train_number}' LIMIT 1
-                """
-                conn = get_db_connection()
                 try:
-                    depot_result = execute_query(conn, get_depot_query)
-                    train_depot_name = depot_result[0]['Depot'] if depot_result else ''
-                    train_name_result = execute_query(conn, get_train_name_query)
-                    train_name = train_name_result[0]['train_name'] if train_name_result else ''
+                    train_conn = get_db_connection()
+                    train_result = execute_query(train_conn, get_depot_query, (train_number,))
+                    if train_result:
+                        complaint['train_depot'] = train_result[0].get("Depot", "")
+                        complaint['train_name'] = train_result[0].get("train_name", "")
+                    else:
+                        complaint['train_depot'] = ''
+                        complaint['train_name'] = ''
                 except Exception as e:
                     logger.error(f"[Depot Lookup] Error: {str(e)}")
+                    complaint['train_depot'] = ''
+                    complaint['train_name'] = ''
                 finally:
-                    conn.close()# or set appropriate default value
-            complaint['train_depot'] = train_depot_name
-            complaint['train_name'] = train_name
-        
+                    train_conn.close()# or set appropriate default value
+
         return complaints
     except Exception as e:
         logger.error(f"Database error in get_complaints_by_date: {str(e)}")

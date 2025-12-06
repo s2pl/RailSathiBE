@@ -10,7 +10,7 @@ import asyncio
 import threading
 import logging
 from services import (
-    create_complaint, get_complaint_by_id, get_complaints_by_date_and_username,
+    create_complaint, get_complaint_by_id, get_complaints_by_date_username_depot,
     update_complaint, delete_complaint, delete_complaint_media,
     upload_file_thread
 )
@@ -80,6 +80,7 @@ async def get_complaint(
 async def get_complaints_by_date_endpoint(
     date_str: str,
     current_user: dict = Depends(get_current_user)):
+    logging.info(f"fetching current user details: {current_user}")
     """Get complaints by date and username
 
     **created by - Asad Khan (Authentication only)**
@@ -111,8 +112,8 @@ async def get_complaints_by_date_endpoint(
 
         # ✅ Convert to standard YYYY-MM-DD format
         normalized_date = complaint_date.strftime("%Y-%m-%d")
-        
-        complaints = get_complaints_by_date_and_username(complaint_date, username=username) #username will taken from logged in user via token
+
+        complaints = get_complaints_by_date_username_depot(complaint_date, username) #username will taken from logged in user via token
         logging.info(f"complaint: {complaints}")
 
         if not complaints or len(complaints) == 0:

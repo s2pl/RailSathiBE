@@ -163,6 +163,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
     token_user_id = payload.get("user_id")
     token_username = payload.get("sub")
     phone = payload.get("phone")
+    user_depot = payload.get("depot")
 
     if not token_user_id and not token_username and not phone:
         raise HTTPException(status_code=401, detail="Invalid token payload")
@@ -183,7 +184,8 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         # Prefer values from DB if available, otherwise fall back to token values
         return {
             "username": user.get("username") if user else token_username or token_user_id,
-            "phone": user.get("phone") if user else phone
+            "phone": user.get("phone") if user else phone,
+            "depot": user.get("depot") if user else user_depot
         }
     finally:
         conn.close()
