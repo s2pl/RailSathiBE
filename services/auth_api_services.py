@@ -9,7 +9,7 @@ from passlib.hash import django_pbkdf2_sha256
 import asyncio
 import threading
 import logging
-from services import (
+from services.unauth_api_services import (
     create_complaint, get_complaint_by_id, get_complaints_by_date_and_username,
     update_complaint, delete_complaint, delete_complaint_media,
     upload_file_thread
@@ -32,7 +32,7 @@ from sqlalchemy.orm import Session
 import random
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
-from user_profile import get_current_user
+from services.user_profile_services import get_current_user
 from fastapi.responses import JSONResponse
 from psycopg2.extras import RealDictCursor
 
@@ -225,18 +225,17 @@ async def create_complaint_endpoint_threaded(
             # Step 2: Fetch war room user phone number
             if train_depot_name:
                 war_room_user_query = f"""
-                    SELECT u.phone
+                    SELECT DISTINCT u.phone
                     FROM user_onboarding_user u
                     JOIN user_onboarding_roles ut ON u.user_type_id = ut.id
+                    JOIN user_onboarding_user_depots ud ON ud.user_id = u.id
+                    JOIN station_depot d ON d.depot_id = ud.depot_id
                     WHERE ut.name = 'war room user railsathi'
-                    AND (
-                        u.depo = '{train_depot_name}'
-                        OR u.depo LIKE '{train_depot_name},%'
-                        OR u.depo LIKE '%,{train_depot_name},%'
-                        OR u.depo LIKE '%,{train_depot_name}'
-                    )
+                    AND d.depot_code = '{train_depot_name}'
                     AND u.phone IS NOT NULL
                     AND u.phone != ''
+                    AND u.is_active = TRUE
+                    AND u.user_status = 'enabled'
                     LIMIT 1
                 """
                 try:
