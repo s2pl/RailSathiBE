@@ -8,7 +8,7 @@ from database import get_db_connection, execute_query_one, execute_query
 import asyncio
 import threading
 import logging
-from services import (
+from services.unauth_api_services import (
     create_complaint, get_complaint_by_id, get_complaints_by_date_and_mobile,
     update_complaint, delete_complaint, delete_complaint_media,
     upload_file_thread
@@ -166,11 +166,11 @@ async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional
     try:
         # Validate date format
         try:
-            complaint_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            created_at_date = datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
 
-        complaints = get_complaints_by_date_and_mobile(complaint_date, mobile_number) #mobile no is optional if give it filters by mobile number otherwise returns all complaints for that date
+        complaints = get_complaints_by_date_and_mobile(created_at_date, mobile_number) #mobile no is optional if give it filters by mobile number otherwise returns all complaints for that date
 
         # Handle empty results
         if not complaints or len(complaints) == 0:
@@ -810,8 +810,8 @@ async def health_check():
 
 
 from fastapi import FastAPI
-from auth_api_services import router as auth_router
-from user_profile import router as auth_router_user_profile
+from services.auth_api_services import router as auth_router
+from services.user_profile_services import router as auth_router_user_profile
 app.include_router(auth_router)
 app.include_router(auth_router_user_profile)
 

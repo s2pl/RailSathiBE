@@ -531,7 +531,7 @@ def get_complaints_by_date_and_username(complain_date: date, username: str): #fo
     finally:
         conn.close()
 
-def get_complaints_by_date_and_mobile(complain_date: date, mobile_number: Optional[str] = None): #for unauthenticated users
+def get_complaints_by_date_and_mobile(complain_create_date: date, mobile_number: Optional[str] = None): #for unauthenticated users
     """Get complaints by date and mobile number"""
     conn = get_db_connection()
     try:
@@ -544,9 +544,9 @@ def get_complaints_by_date_and_mobile(complain_date: date, mobile_number: Option
                    t.train_name as train_detail_name, t."Depot" as train_depot
             FROM rail_sathi_railsathicomplain c
             LEFT JOIN trains_traindetails t ON c.train_id = t.id
-            WHERE DATE(c.complain_date) = %s
+            WHERE DATE(c.created_at) = %s
         """
-        params = [complain_date]
+        params = [complain_create_date]
         if mobile_number:
             query += " AND c.mobile_number = %s"
             params.append(mobile_number)
