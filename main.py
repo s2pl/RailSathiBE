@@ -166,11 +166,11 @@ async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional
     try:
         # Validate date format
         try:
-            complaint_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            created_at_date = datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
 
-        complaints = get_complaints_by_date_and_mobile(complaint_date, mobile_number) #mobile no is optional if give it filters by mobile number otherwise returns all complaints for that date
+        complaints = get_complaints_by_date_and_mobile(created_at_date, mobile_number) #mobile no is optional if give it filters by mobile number otherwise returns all complaints for that date
 
         # Handle empty results
         if not complaints or len(complaints) == 0:
