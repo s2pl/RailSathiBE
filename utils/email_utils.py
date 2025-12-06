@@ -1,7 +1,7 @@
 import logging
 import asyncio
 from fastapi_mail import FastMail, MessageSchema
-from mail_config import conf
+from config.mail_config import conf
 from jinja2 import Template
 from typing import Dict, List
 import os
