@@ -50,14 +50,16 @@ jobs:
           key: ${{ secrets.AWS_RLS_SSH_PRIVATE_KEY }}
           script: |
             echo "Connected to PROD server"
+
+            echo "Activating virtual environment"
+            source .venv/bin/activate
+
+            echo "Navigating to application directory"
             cd ~/RailSathiBE/
 
-            echo "📦 Pulling latest code"
+            echo "Pulling latest code"
             git fetch --all
             git reset --hard origin/main
-
-            echo "🐍 Activating virtual environment"
-            source .venv/bin/activate
 
             echo "Installing dependencies"
             pip install -r requirements.txt
