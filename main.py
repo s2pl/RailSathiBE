@@ -32,8 +32,14 @@ app = FastAPI(
 
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.config.fileConfig("logging.ini", disable_existing_loggers=False)
 logger = logging.getLogger(__name__)
+logger.info("Logging loaded from logging.ini")
+
+print("PRINT IS WORKING!")
+logger.error("THIS IS A TEST ERROR")
+logger.info("THIS IS A TEST INFO")
+
 
 from database import get_db_connection
 from psycopg2.extras import RealDictCursor

@@ -985,3 +985,126 @@ async def verify_email_otp(data: EmailOTPVerifyRequest, current_user: dict = Dep
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
+
+class MobileNumberRequest(BaseModel):
+    mobile_number: str
+
+class ChangeMobileNumberVerifyOTP(BaseModel):
+    mobile_number: str
+    otp_code: str
+
+OTP_EXPIRY_MINUTES = 5  # adjust as needed
+
+
+@router.post("/change-mobile-number-request-otp")
+async def change_mobile_number_request(
+    data: MobileNumberRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    conn = get_db_connection()
+    try:
+        new_phone = data.mobile_number.strip()
+
+        # Validation
+        if not re.match(r'^\d{10}$', new_phone):
+            raise HTTPException(400, "Phone number must be exactly 10 digits")
+
+        # Check if number already exists for ANY user
+        exists = execute_query(
+            conn,
+            "SELECT id FROM user_onboarding_user WHERE phone = %s",
+            (new_phone,)
+        )
+        if exists:
+            raise HTTPException(400, "Phone number already linked with another account")
+
+        TEMPLATE = "Changing+Mobile+Number"
+
+        # Send OTP → returns session_id
+        session_id = send_otp(new_phone, TEMPLATE)
+        if not session_id:
+            raise HTTPException(500, "Failed to send OTP")
+
+        now = datetime.now(timezone.utc)
+
+        # Store OTP session
+        execute_query(
+            conn,
+            """
+            INSERT INTO user_onboarding_otp 
+                (phone, otp, session_id, counter, created_at, timestamp, created_by, updated_at, updated_by)
+            VALUES 
+                (%s, %s, %s, 0, %s, %s, %s, %s, %s)
+            """,
+            (new_phone, '', session_id, now, now, current_user["username"], now, current_user["username"])
+        )
+        conn.commit()
+
+        return {"message": "OTP sent successfully"}
+
+    except Exception as e:
+        logging.exception(f"CHANGE MOBILE VERIFY ERROR: {e}")
+        raise
+
+    finally:
+        conn.close()
+
+
+
+@router.post("/change-mobile-number-verify-otp")
+async def change_mobile_number_verify(
+    data: ChangeMobileNumberVerifyOTP,
+    current_user: dict = Depends(get_current_user)
+):
+    conn = get_db_connection()
+    try:
+        if not current_user:
+            raise HTTPException(401, "User not authenticated")
+
+        new_phone = data.mobile_number.strip()
+        typed_otp = data.otp_code.strip()
+
+        # Validate new phone format
+        if not re.match(r'^\d{10}$', new_phone):
+            raise HTTPException(400, "Phone number must be 10 digits")
+
+        # Load latest OTP session for this number
+        otp_row = execute_query(
+            conn,
+            "SELECT * FROM user_onboarding_otp WHERE phone=%s ORDER BY id DESC LIMIT 1",
+            (new_phone,)
+        )
+
+        if not otp_row:
+            raise HTTPException(400, "OTP not found. Please request again.")
+
+        session_id = otp_row[0]["session_id"]
+        print(f"Session ID: {session_id}")
+
+        created_at = parse(otp_row[0]["created_at"])
+        if datetime.now(timezone.utc) - created_at > timedelta(minutes=OTP_EXPIRY_MINUTES):
+            execute_query(conn, "DELETE FROM user_onboarding_otp WHERE phone=%s", (new_phone,))
+            conn.commit()
+            raise HTTPException(400, "OTP expired. Request a new one.")
+
+        if not verify_otp(session_id, typed_otp):
+            raise HTTPException(400, "Invalid OTP")
+
+        execute_query(
+            conn,
+            """
+            UPDATE user_onboarding_user
+            SET phone=%s, updated_at=NOW(), updated_by=%s
+            WHERE username=%s
+            """,
+            (new_phone, current_user["username"], current_user["username"])
+        )
+
+        execute_query(conn, "DELETE FROM user_onboarding_otp WHERE phone=%s", (new_phone,))
+        conn.commit()
+
+        return {"message": "Mobile number updated successfully"}
+
+    finally:
+        conn.close()
+
