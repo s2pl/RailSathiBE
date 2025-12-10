@@ -1,4 +1,4 @@
-name: Deploy RailSathi FastAPI Microservice to PROD
+name: Deploy RailSathi FastAPI Microservice to UAT
 
 on:
   push:
@@ -11,7 +11,7 @@ env:
   INSTANCE_USERNAME: "sarva"
 
 jobs:
-  deploy-main-to-prod-aws-server:
+  deploy-uat-to-uat-aws-server:
     runs-on: ubuntu-latest
 
     steps:
