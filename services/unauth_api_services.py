@@ -332,9 +332,9 @@ def create_complaint(complaint_data):
         query = """
             INSERT INTO rail_sathi_railsathicomplain 
             (pnr_number, is_pnr_validated, name, mobile_number, complain_type, 
-             complain_description, complain_date, complain_status, train_id, 
+             complain_description, complain_date, date_of_journey, complain_status, train_id, 
              train_number, train_name, coach, berth_no, created_by, created_at, updated_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING complain_id
         """
         now = datetime.now()
@@ -347,6 +347,7 @@ def create_complaint(complaint_data):
             complaint_data.get('complain_type'),
             complaint_data.get('complain_description'),
             complain_date,
+            date_of_journey.date(),
             complaint_data.get('complain_status', 'pending'),
             complaint_data.get('train_id'),
             complaint_data.get('train_number'),
