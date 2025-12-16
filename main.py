@@ -186,6 +186,10 @@ async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional
         assigned = [RailSathiComplainGetData(**c) for c in complaints["assigned_complaints"]]
         other = [RailSathiComplainGetData(**c) for c in complaints["other_complaints"]]
 
+        logger.info(f"Assigned complaints: {len(assigned)}, Other complaints: {len(other)}")
+        logger.info(f"Complaints grouped successfully")
+        logger.error(f"Error grouping complaints: {str(e)}")
+
 
         return ComplaintsGroupedResponse(
             message="Complaints grouped successfully",
