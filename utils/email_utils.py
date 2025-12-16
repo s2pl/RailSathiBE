@@ -5,13 +5,34 @@ from config.mail_config import conf
 from jinja2 import Template
 from typing import Dict, List
 import os
+import sys
 from database import get_db_connection, execute_query  # Fixed import
-from datetime import datetime
+from datetime import datetime, date
 import pytz
 import json
 from utils.notification_utils import send_passenger_complaint_notification_in_thread , send_passenger_complaint_push_and_in_app_in_thread
+from utils.train_journey_utils import is_user_assigned_on_journey_date
 
 EMAIL_SENDER = conf.MAIL_FROM
+
+os.makedirs("logs", exist_ok=True)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # Capture everything at least INFO level
+
+if not logger.handlers:
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    console_format = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    console_handler.setFormatter(console_format)
+    
+    file_handler = logging.FileHandler("logs/db_errors.log")
+    file_handler.setLevel(logging.ERROR)
+    file_format = logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s")
+    file_handler.setFormatter(file_format)
+
+    logger.addHandler(console_handler)
+    logger.addHandler(file_handler)
 
 def send_plain_mail(subject: str, message: str, from_: str, to: List[str], cc: List[str] = None):
     """Send plain text email with CC support"""
@@ -81,8 +102,6 @@ def send_passenger_complain_notifications(complain_details: Dict):
     train_depo = complain_details.get('train_depo', '')
     #print(f"Train Depot: {train_depo}")
     train_no = str(complain_details.get('train_no', '')).strip()
-    #print(f"Train Number: {train_no}")
-    complaint_date = complain_details.get('created_at', '') 
     journey_start_date = complain_details.get('date_of_journey', '')
     
     #print(f"Train Name: {complain_details.get('train_name', 'Not provided')}")
@@ -142,7 +161,7 @@ def send_passenger_complain_notifications(complain_details: Dict):
 
         # Train access users query (no depot filtering needed here)
         assigned_users_query = """
-            SELECT u.email, u.id, u.first_name, u.last_name,u.fcm_token,u.fcm_token_coachsathi, ta.train_details
+            SELECT u.email, u.id, u.first_name, u.last_name, u.fcm_token, u.fcm_token_coachsathi, ta.train_details
             FROM user_onboarding_user u
             JOIN trains_trainaccess ta ON ta.user_id = u.id
             WHERE ta.train_details IS NOT NULL 
@@ -156,24 +175,16 @@ def send_passenger_complain_notifications(complain_details: Dict):
 
         # Get train number and complaint date for filtering
         train_no = str(complain_details.get('train_no', '')).strip()
-        
-        # Handle created_at whether it's a string or datetime object
-        created_at_raw = complain_details.get('created_at', '')
-        try:
-            if isinstance(created_at_raw, datetime):
-                complaint_date = created_at_raw.date()
-            elif isinstance(created_at_raw, str):
-                if len(created_at_raw) >= 10:
-                    complaint_date = datetime.strptime(created_at_raw, "%Y-%m-%d").date()
-                else:
-                    complaint_date = None
-            else:
-                complaint_date = None
-        except (ValueError, TypeError):
-            complaint_date = None
-            
 
-        if complaint_date and train_no:
+        # Get complaint date and current time
+        created_at_raw = date.today().strftime('%Y-%m-%d')
+        complaint_date_str = created_at_raw  # Keep as string in YYYY-MM-DD format
+        complaint_validation_time = datetime.now()  # Current datetime for time comparison
+
+        logger.info("2. Complaint Date: " + str(complaint_date_str))
+        logger.info("3. Complaint Validation Time: " + str(complaint_validation_time))
+
+        if complaint_date_str and train_no:
             for user in assigned_users_raw:
                 try:
                     train_details_str = user.get('train_details', '{}')
@@ -188,18 +199,25 @@ def send_passenger_complain_notifications(complain_details: Dict):
                     if train_no in train_details:
                         for access in train_details[train_no]:
                             try:
-                                origin_date = datetime.strptime(access.get('origin_date', ''), "%Y-%m-%d").date()
-                                end_date_str = access.get('end_date', '')
+                                origin_date_str = access.get('origin_date', '')
                                 
-                                # Check if complaint date falls within the valid range
-                                if end_date_str == 'ongoing':
-                                    is_valid = complaint_date >= origin_date
-                                else:
-                                    end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
-                                    is_valid = origin_date <= complaint_date <= end_date
+                                if not origin_date_str:
+                                    continue
                                 
-                                if is_valid:
+                                # Validate origin_date format
+                                datetime.strptime(origin_date_str, "%Y-%m-%d")
+                                
+                                # Use the multi-day journey utility function
+                                is_assigned = is_user_assigned_on_journey_date(
+                                    origin_date_str=origin_date_str,
+                                    pnr_journey_date_str=complaint_date_str,
+                                    pnr_validation_time=complaint_validation_time,
+                                    train_no=train_no
+                                )
+                                
+                                if is_assigned:
                                     assigned_users_list.append(user)
+                                    logger.info(f"User {user.get('email')} assigned (multi-day journey logic)")
                                     break  # Only need one match per user
                                     
                             except (ValueError, TypeError) as date_error:
@@ -302,7 +320,7 @@ def send_passenger_complain_notifications(complain_details: Dict):
             "created_at": complaint_created_at,
             "description": complain_details.get('description', ''),
             "train_depo": complain_details.get('train_depo', ''),
-            "complaint_date": complaint_date,
+            "complaint_date": complaint_date_str,
             "start_date_of_journey": journey_start_date,
             'site_name': 'RailSathi',
         }
