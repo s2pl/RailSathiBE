@@ -113,11 +113,11 @@ class RailSathiComplainGetData(BaseModel):
     rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse] = []
 
 
-# Response wrapper that matches your actual API response structure
-# For GET operations (without customer_care)
-class RailSathiComplainGetResponse(BaseModel):
+class ComplaintsGroupedResponse(BaseModel):
     message: str
-    data: RailSathiComplainGetData
+    assigned_complaints: List[RailSathiComplainGetData]
+    other_complaints: List[RailSathiComplainGetData]
+
 
 # For CREATE/UPDATE operations (with customer_care)
 class RailSathiComplainResponse(BaseModel):
@@ -147,7 +147,7 @@ class RailSathiComplainFlatResponse(BaseModel):
     updated_by: Optional[str]
     rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse]
 
-@app.get("/rs_microservice/complaint/get/{complain_id}", response_model=RailSathiComplainGetResponse)
+@app.get("/rs_microservice/complaint/get/{complain_id}", response_model=ComplaintsGroupedResponse)
 async def get_complaint(complain_id: int):
     """Get complaint by ID"""
     try:
@@ -155,9 +155,10 @@ async def get_complaint(complain_id: int):
         if not complaint:
             raise HTTPException(status_code=404, detail="Complaint not found")
         
-        return RailSathiComplainGetResponse(
+        return ComplaintsGroupedResponse(
             message="Complaint retrieved successfully",
-            data=complaint
+            assigned_complaints=[RailSathiComplainGetData(**complaint)],
+            other_complaints=[]
         )
     except HTTPException as e:
         raise e
@@ -166,8 +167,8 @@ async def get_complaint(complain_id: int):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@app.get("/rs_microservice/complaint/get/date/{date_str}", response_model=List[RailSathiComplainGetResponse])
-async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional[str] = None, journey_type: Optional[str] = "ALL"):
+@app.get("/rs_microservice/complaint/get/date/{date_str}", response_model=ComplaintsGroupedResponse)
+async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional[str] = None):
     """Get complaints by date and mobile number"""
     try:
         # Validate date format
@@ -176,36 +177,21 @@ async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
 
-        complaints = get_complaints_by_date_and_mobile(created_at_date, mobile_number, journey_type) #mobile no is optional if give it filters by mobile number otherwise returns all complaints for that date
+        complaints = get_complaints_by_date_and_mobile(created_at_date, mobile_number) #mobile no is optional if give it filters by mobile number otherwise returns all complaints for that date
 
         # Handle empty results
         if not complaints or len(complaints) == 0:
             raise HTTPException(status_code=404, detail="No complaints found for the given date.")
-        
-        # Wrap each complaint in the expected response format
-        response_list = []
-        for complaint in complaints:
-            try:
-                response_list.append(RailSathiComplainGetResponse(
-                    message="Complaint retrieved successfully",
-                    data=complaint
-                ))
-            except Exception as validation_error:
-                logger.error(f"Error creating response for complaint: {str(validation_error)}")
-                logger.error(f"Complaint data: {complaint}")
-                # Add the missing field and try again
-                try:
-                    complaint['customer_care'] = None
-                    response_list.append(RailSathiComplainGetResponse(
-                        message="Complaint retrieved successfully",
-                        data=complaint
-                    ))
-                except Exception as retry_error:
-                    logger.error(f"Retry failed for complaint {complaint.get('complain_id')}: {str(retry_error)}")
-                    # Continue with other complaints rather than failing completely
-                    continue
-        
-        return response_list
+
+        assigned = [RailSathiComplainGetData(**c) for c in complaints["assigned_complaints"]]
+        other = [RailSathiComplainGetData(**c) for c in complaints["other_complaints"]]
+
+
+        return ComplaintsGroupedResponse(
+            message="Complaints grouped successfully",
+            assigned_complaints=assigned,
+            other_complaints=other,
+        )
         
     except HTTPException:
         raise

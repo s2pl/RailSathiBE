@@ -15,7 +15,6 @@ from utils.email_utils import send_plain_mail, send_passenger_complain_notificat
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, File, UploadFile, HTTPException
 import asyncio
-import requests
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -51,46 +50,76 @@ def sanitize_timestamp(raw_timestamp):
     decoded = unquote(raw_timestamp)
     return get_valid_filename(decoded).replace(":", "_")
 
-def process_media_file_upload(file_bytes, filename, content_type, product_name, username, folder_name):
+def process_media_file_upload(file_content, file_format, complain_id, media_type):
+    """Process and upload media file to Google Cloud Storage"""
     try:
-        base_url = os.getenv("MEDIA_UPLOAD_MS_URL")
-        if not base_url:
-            raise ValueError("MEDIA_UPLOAD_MS_URL is not configured")
+        created_at = datetime.now().strftime("%Y-%m-%d_%H:%M:%S.%f")
+        unique_id = str(uuid.uuid4())[:5]
+        full_file_name = f"rail_sathi_complain_{complain_id}_{sanitize_timestamp(created_at)}_{unique_id}.{file_format}"
 
-        is_video = content_type.startswith("video/")
-        file_type = "video" if is_video else "image"
-        endpoint = f"{base_url}/upload-video" if is_video else f"{base_url}/upload-image"
-        
-        files = {file_type: (filename, file_bytes, content_type)}
+        # Use the authenticated client
+        client = get_gcs_client()
+        bucket = client.bucket(GCS_BUCKET_NAME)
+        blob = None
 
-        data = {
-            "product_name": product_name,
-            "username": username,
-            "folder_name": folder_name
-        }
+        if media_type == "image":
+            file_stream = io.BytesIO(file_content)
+            original_image = Image.open(file_stream)
+            if original_image.mode == 'RGBA':
+                original_image = original_image.convert('RGB')
+            new_file = io.BytesIO()
+            original_image.save(new_file, format='JPEG')
+            new_file.seek(0)
+            key = f"rail_sathi_complain_images/{full_file_name}"
+            blob = bucket.blob(key)
+            blob.upload_from_file(new_file, content_type='image/jpeg')
+            #print(f"rail_sathi_complain_images Image uploaded: {full_file_name}")
 
-        response = requests.post(
-            endpoint,
-            files=files,
-            data=data,
-            timeout=20
-        )
+        elif media_type == "video":
+            try:
+                temp_dir = "/tmp/rail_sathi_temp"
+                os.makedirs(temp_dir, exist_ok=True)
+                
+                temp_file_path = os.path.join(temp_dir, full_file_name)
+                compressed_file_path = os.path.join(temp_dir, f"compressed_{full_file_name}")
+                
+                with open(temp_file_path, 'wb') as temp_file:
+                    temp_file.write(file_content)
+                
+                clip = VideoFileClip(temp_file_path)
+                target_bitrate = '5000k'
+                try:
+                    clip.write_videofile(compressed_file_path, codec='libx264', bitrate=target_bitrate)
+                    clip.close()
+                except Exception as e:
+                    print(f"Error compressing video: {e}")
+                
+                key = f"rail_sathi_complain_videos/{full_file_name}"
+                blob = bucket.blob(key)
+                with open(compressed_file_path, 'rb') as temp_file:
+                    blob.upload_from_file(temp_file, content_type='video/mp4')
+                #print(f"rail_sathi_complain_videos Video uploaded: {full_file_name}")
+            except Exception as e:
+                print(f'Error while storing video: {repr(e)}')
+            finally:
+                if os.path.exists(compressed_file_path):
+                    os.remove(compressed_file_path)
+                if os.path.exists(temp_file_path):
+                    os.remove(temp_file_path)
 
-        response.raise_for_status()
-        result = response.json()
-
-        # Media MS may return different keys
-        if "data_url" in result:
-            return result["data_url"]
-        if "image_url" in result:
-            return result["image_url"]
-        if "url" in result:
-            return result["url"]
-
-        raise ValueError(f"Unexpected media upload response: {result}")
-
+        if blob:
+            try:
+                url = blob.public_url
+                #print(f"Uploaded file URL: {url}")
+                return url
+            except Exception as e:
+                print(f"Failed to get public URL: {e}")
+                return None
+        else:
+            print("Upload failed (blob is None)")
+            return None
     except Exception as e:
-        logger.exception("RailSathi Media upload failed")
+        print(f"Error processing media file: {e}")
         raise e
 
 def upload_file_thread(file_obj, complain_id, user):
@@ -130,14 +159,7 @@ def upload_file_thread(file_obj, complain_id, user):
         logger.info(f"Uploading {media_type} file: {filename}")
         
         # Upload file
-        uploaded_url = process_media_file_upload(
-            file_bytes=file_content,
-            filename=filename,
-            content_type=content_type,
-            product_name="railsathi",
-            username=user,
-            folder_name="railsathi"
-        )
+        uploaded_url = process_media_file_upload(file_content, ext, complain_id, media_type)
         
         if uploaded_url:
             logger.info(f"File uploaded successfully: {uploaded_url}")
@@ -197,14 +219,7 @@ async def upload_file_async(file_obj: UploadFile, complain_id: int, user: str):
         logger.info(f"Uploading {media_type} file: {filename}")
         
         # Upload file
-        uploaded_url = process_media_file_upload(
-            file_bytes=file_content,
-            filename=filename,
-            content_type=content_type,
-            product_name="railsathi",
-            username=user,
-            folder_name="railsathi"
-        )
+        uploaded_url = process_media_file_upload(file_content, ext, complain_id, media_type)
         
         if uploaded_url:
             logger.info(f"File uploaded successfully: {uploaded_url}")
@@ -317,9 +332,9 @@ def create_complaint(complaint_data):
         query = """
             INSERT INTO rail_sathi_railsathicomplain 
             (pnr_number, is_pnr_validated, name, mobile_number, complain_type, 
-             complain_description, complain_date, date_of_journey, complain_status, train_id, 
+             complain_description, complain_date, complain_status, train_id, 
              train_number, train_name, coach, berth_no, created_by, created_at, updated_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING complain_id
         """
         now = datetime.now()
@@ -332,7 +347,6 @@ def create_complaint(complaint_data):
             complaint_data.get('complain_type'),
             complaint_data.get('complain_description'),
             complain_date,
-            date_of_journey.date(),
             complaint_data.get('complain_status', 'pending'),
             complaint_data.get('train_id'),
             complaint_data.get('train_number'),
@@ -545,64 +559,15 @@ def get_complaints_by_date_username_depot(complain_create_date: date, username: 
     finally:
         conn.close()
 
-def get_complaints_by_date_and_mobile(complain_create_date: date, mobile_number: Optional[str] = None, journey_type: Optional[str] = "ALL"):
+def get_complaints_by_date_and_mobile(complain_create_date: date, mobile_number: Optional[str] = None):
     """Get complaints by date and optionally filtered by user's depot trains"""
     conn = get_db_connection()
     try:
-        # Base query for complaints
-        query = """
-            SELECT c.complain_id, c.pnr_number, c.is_pnr_validated, c.name, c.mobile_number,
-                   c.complain_type, c.complain_description, c.complain_date, c.complain_status,
-                   c.train_id, c.train_number, c.train_name, c.coach, c.berth_no,
-                   c.submission_status, c.created_at, c.created_by, c.updated_at, c.updated_by,
-                   t.train_name as train_detail_name, t."Depot" as train_depot
-            FROM rail_sathi_railsathicomplain c
-            LEFT JOIN trains_traindetails t ON c.train_id = t.id
-            WHERE DATE(c.created_at) = %s
-        """
-        params = [complain_create_date]
-
-        if journey_type == "CURRENT":
-            if not mobile_number:
-                return []
-            user_coach_query = """
-                SELECT
-                    train.train_no,
-                    coach
-                FROM user_onboarding_user u
-                INNER JOIN trains_trainaccess t
-                    ON t.user_id = u.id
-                CROSS JOIN jsonb_each(t.train_details)
-                    AS train(train_no, assignments)
-                CROSS JOIN jsonb_array_elements(assignments) AS assignment
-                CROSS JOIN jsonb_array_elements_text(
-                    assignment->'coach_numbers'
-                ) AS coach
-                WHERE u.phone = %s
-                AND (
-                    assignment->>'end_date' = 'ongoing'
-                    OR (
-                        assignment ? 'end_date'
-                        AND assignment->>'end_date' ~ '^\d{4}-\d{2}-\d{2}$'
-                        AND (assignment->>'end_date')::date >= CURRENT_DATE
-                    )
-                );
-            """
-
-            user_coaches = execute_query(conn, user_coach_query, (mobile_number,))
-            if not user_coaches:
-                return []
-
-            train_numbers = list(set(row["train_no"] for row in user_coaches))
-            coaches = list({row["coach"] for row in user_coaches})
-
-            query += """
-                AND c.train_number = ANY(%s)
-                AND c.coach = ANY(%s)
-            """
-            params.extend([train_numbers, coaches])
-
-        elif journey_type == "ALL" and mobile_number:
+        # If mobile number is provided, first get user's depots and trains
+        if mobile_number:
+            logger.info(f"Fetching complaints for mobile: {mobile_number}, date: {complain_create_date}")
+            
+            # Get user's depot codes
             user_depots_query = """
                 SELECT d.depot_code, d.depot_name
                 FROM user_onboarding_user u
@@ -611,15 +576,15 @@ def get_complaints_by_date_and_mobile(complain_create_date: date, mobile_number:
                 WHERE u.phone = %s
             """
             user_depots_result = execute_query(conn, user_depots_query, (mobile_number,))
-
+            
             if not user_depots_result:
                 logger.info(f"No depots found for mobile number: {mobile_number}")
                 return []
-
+            
             depot_codes = [depot['depot_code'] for depot in user_depots_result]
             depot_names = [f"{depot['depot_code']} ({depot.get('depot_name', 'N/A')})" for depot in user_depots_result]
             logger.info(f"User's depots: {', '.join(depot_names)}")
-
+            
             # Get train numbers for these depots
             train_numbers_query = """
                 SELECT DISTINCT train_no, train_name, "Depot"
@@ -627,27 +592,107 @@ def get_complaints_by_date_and_mobile(complain_create_date: date, mobile_number:
                 WHERE "Depot" = ANY(%s)
             """
             train_numbers_result = execute_query(conn, train_numbers_query, (depot_codes,))
-
+            
             if not train_numbers_result:
                 logger.info(f"No trains found for depots: {', '.join(depot_codes)}")
                 return []
-
-            train_numbers = []
-            for t in train_numbers_result:
-                no = str(t["train_no"])
-                train_numbers.extend({no, "0" + no, no.lstrip("0")})
-
-            query += " AND c.train_number = ANY(%s)"
-            params.append(list(set(train_numbers)))
-
-
             
+            # Convert train numbers to strings for comparison with CharField
+            # Include both with and without leading zeros for all train numbers
+            train_numbers = []
+            for train in train_numbers_result:
+                train_no = str(train['train_no'])
+                train_numbers.append(train_no)
+                # Add version with leading zero prepended
+                train_numbers.append('0' + train_no)
+                # If train number starts with 0, also add version without leading zero
+                if train_no.startswith('0'):
+                    train_numbers.append(train_no.lstrip('0') or '0')
+            
+            unique_train_numbers = list(set(train_numbers))
+            logger.info(f"Total trains in user's depots: {len(unique_train_numbers)} unique train numbers")
+            logger.info(f"Sample trains: {', '.join(unique_train_numbers[:10])}{'...' if len(unique_train_numbers) > 10 else ''}")
+            
+            # Main query with train number filter
+            # JOIN using CAST to match CharField with IntegerField
+            query = """
+                SELECT c.complain_id, c.pnr_number, c.is_pnr_validated, c.name, c.mobile_number,
+                       c.complain_type, c.complain_description, c.complain_date, c.complain_status,
+                       c.train_id, c.train_number, c.train_name, c.coach, c.berth_no,
+                       c.submission_status, c.created_at, c.created_by, c.updated_at, c.updated_by,
+                       t.train_name as train_detail_name, t."Depot" as train_depot
+                FROM rail_sathi_railsathicomplain c
+                LEFT JOIN trains_traindetails t ON CAST(t.train_no AS VARCHAR) = c.train_number
+                WHERE DATE(c.created_at) = %s
+                  AND c.train_number = ANY(%s)
+                ORDER BY c.created_at DESC
+            """
+            params = [complain_create_date, train_numbers]
+
+            assigned_train_query = """ 
+                SELECT DISTINCT train.train_no
+                FROM trains_trainaccess ta
+                CROSS JOIN LATERAL jsonb_each(ta.train_details) AS train(train_no, assignments)
+                CROSS JOIN LATERAL jsonb_array_elements(assignments) AS assignment
+                WHERE ta.user_id = (
+                    SELECT id FROM user_onboarding_user WHERE phone = %s
+                )
+                AND (
+                    assignment->>'end_date' = 'ongoing'
+                    OR (assignment->>'end_date')::date >= CURRENT_DATE
+                );
+            """
+            assigned_train_rows = execute_query(conn, assigned_train_query, (mobile_number,))
+            assigned_trains = {str(r["train_no"]) for r in assigned_train_rows}
+
+        else:
+            logger.info(f"Fetching all complaints for date: {complain_create_date}")
+            
+            # Query without mobile filter - get all complaints for the date
+            query = """
+                SELECT c.complain_id, c.pnr_number, c.is_pnr_validated, c.name, c.mobile_number,
+                       c.complain_type, c.complain_description, c.complain_date, c.complain_status,
+                       c.train_id, c.train_number, c.train_name, c.coach, c.berth_no,
+                       c.submission_status, c.created_at, c.created_by, c.updated_at, c.updated_by,
+                       t.train_name as train_detail_name, t."Depot" as train_depot
+                FROM rail_sathi_railsathicomplain c
+                LEFT JOIN trains_traindetails t ON CAST(t.train_no AS VARCHAR) = c.train_number
+                WHERE DATE(c.created_at) = %s
+                ORDER BY c.created_at DESC
+            """
+            params = [complain_create_date]
+
+
         # Execute main query
         complaints = execute_query(conn, query, params)
 
         if not complaints:
-            return []
+            logger.info(f"No complaints found for the given criteria")
             
+            # If mobile_number was provided, check if there are complaints for this date that we filtered out
+            if mobile_number:
+                check_query = """
+                    SELECT DISTINCT c.train_number, t."Depot" as depot
+                    FROM rail_sathi_railsathicomplain c
+                    LEFT JOIN trains_traindetails t ON CAST(t.train_no AS VARCHAR) = c.train_number
+                    WHERE DATE(c.created_at) = %s
+                """
+                all_trains_with_complaints = execute_query(conn, check_query, [complain_create_date])
+                if all_trains_with_complaints:
+                    logger.info(f"Total complaints for this date across all depots: {len(all_trains_with_complaints)}")
+            
+            return []
+        
+        logger.info(f"Found {len(complaints)} complaints for date {complain_create_date}")
+        
+        # Log summary of complaints by train
+        train_complaint_counts = {}
+        for complaint in complaints:
+            train_no = complaint.get('train_number', 'Unknown')
+            train_complaint_counts[train_no] = train_complaint_counts.get(train_no, 0) + 1
+        
+        logger.info(f"Complaints distribution by train: {dict(list(train_complaint_counts.items())[:10])}")
+        
         # Get media files for each complaint
         for complaint in complaints:
             complaint_id = complaint.get('complain_id')
@@ -673,35 +718,43 @@ def get_complaints_by_date_and_mobile(complain_create_date: date, mobile_number:
             # Add customer_care field
             complaint['customer_care'] = None
             
-            # Get depot and train name if not already present
-            train_number = complaint.get('train_number')
+            # Get depot and train name from JOIN result
             train_depot_name = complaint.get('train_depot', '')
-            train_name = complaint.get('train_detail_name', complaint.get('train_name', ''))
-            
-            # Only query if we don't have the data from the JOIN
-            if train_number and not train_depot_name:
-                depot_query = """
-                    SELECT "Depot", train_name 
-                    FROM trains_traindetails 
-                    WHERE train_no = %s 
-                    LIMIT 1
-                """
-                try:
-                    train_conn = get_db_connection()
-                    train_result = execute_query(train_conn, depot_query, (train_number,))
-                    if train_result:
-                        train_depot_name = train_result[0].get('Depot', '')
-                        if not train_name:
-                            train_name = train_result[0].get('train_name', '')
-                except Exception as e:
-                    logger.error(f"[Depot Lookup] Error: {str(e)}")
-                finally:
-                    train_conn.close()
+            train_name = complaint.get('train_detail_name') or complaint.get('train_name', '')
             
             complaint['train_depot'] = train_depot_name
             complaint['train_name'] = train_name
         
-        return complaints
+        logger.info(f"Successfully processed {len(complaints)} complaints with media files")
+        
+        if not mobile_number:
+            return {
+                "assigned_complaints": [],
+                "other_complaints": complaints
+            }
+
+        assigned_complaints = []
+        other_complaints = []
+
+        for comp in complaints:
+            train_no = (comp.get("train_number") or "").strip()
+            train_depot = comp.get("train_depot") or ""
+
+            # Assigned complaints only trains user is assigned to
+            if train_no in assigned_trains:
+                assigned_complaints.append(comp)
+
+            # Other complaints only depot trains, excluding assigned trains
+            elif train_depot in depot_codes:
+                other_complaints.append(comp)
+
+        logger.info(f"Assigned complaints count = {len(assigned_complaints)}")
+        logger.info(f"Other complaints count = {len(other_complaints)}")
+
+        return {
+            "assigned_complaints": assigned_complaints,
+            "other_complaints": other_complaints
+        }
         
     except Exception as e:
         logger.error(f"Database error in get_complaints_by_date_and_mobile: {str(e)}")
