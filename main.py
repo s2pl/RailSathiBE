@@ -167,7 +167,7 @@ async def get_complaint(complain_id: int):
 
 
 @app.get("/rs_microservice/complaint/get/date/{date_str}", response_model=List[RailSathiComplainGetResponse])
-async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional[str] = None):
+async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional[str] = None, journey_type: Optional[str] = "ALL"):
     """Get complaints by date and mobile number"""
     try:
         # Validate date format
@@ -176,7 +176,7 @@ async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
 
-        complaints = get_complaints_by_date_and_mobile(created_at_date, mobile_number) #mobile no is optional if give it filters by mobile number otherwise returns all complaints for that date
+        complaints = get_complaints_by_date_and_mobile(created_at_date, mobile_number, journey_type) #mobile no is optional if give it filters by mobile number otherwise returns all complaints for that date
 
         # Handle empty results
         if not complaints or len(complaints) == 0:
