@@ -97,6 +97,7 @@ def send_passenger_complain_notifications(complain_details: Dict):
     s2_admin_users = []
     railway_admin_users = []
     assigned_users_list = []
+    assigned_cs_tokens = [] 
     
     #print(f"Complain Details for mail: {complain_details}")
     train_depo = complain_details.get('train_depo', '')
@@ -216,9 +217,32 @@ def send_passenger_complain_notifications(complain_details: Dict):
                                 )
                                 
                                 if is_assigned:
-                                    assigned_users_list.append(user)
-                                    logger.info(f"User {user.get('email')} assigned (multi-day journey logic)")
-                                    break  # Only need one match per user
+                                    logger.info(f"✓ Date criteria matched for user {user.get('email')}, now checking coach assignment...")
+                                    
+                                    # Get coach_numbers from this entry
+                                    coach_numbers = access.get("coach_numbers", [])
+                                    logger.info(f"Assigned coach_numbers: {coach_numbers}")
+                                    
+                                    # Get complaint coach
+                                    complaint_coach = complain_details.get("coach", "")
+                                    logger.info(f"Complaint coach: {complaint_coach}")
+                                    
+                                    # Check if complaint coach matches assigned coaches
+                                    coach_match = False
+                                    if coach_numbers and complaint_coach:
+                                        coach_match = complaint_coach in coach_numbers
+                                    
+                                    if coach_match:
+                                        logger.info(f"✓✓✓ COACH MATCHED! User {user.get('email')} IS assigned.")
+                                        assigned_users_list.append(user)
+                                        
+                                        # Also collect CoachSathi token separately for aggregation
+                                        if user.get("fcm_token_coachsathi"):
+                                            assigned_cs_tokens.append(user.get("fcm_token_coachsathi"))
+                                        
+                                        break  # Only need one match per user
+                                    else:
+                                        logger.info(f"✗ Coach criteria not met - complaint coach '{complaint_coach}' not in assigned coaches {coach_numbers}")
                                     
                             except (ValueError, TypeError) as date_error:
                                 logging.warning(f"Date parsing error for user {user.get('id')}: {date_error}")
@@ -242,6 +266,7 @@ def send_passenger_complain_notifications(complain_details: Dict):
         railsathi_tokens = list(set(railsathi_tokens))  # remove duplicates
 
         coachsathi_tokens = [user.get("fcm_token_coachsathi") for user in all_users_to_mail if user.get("fcm_token_coachsathi")]
+        coachsathi_tokens.extend(assigned_cs_tokens) 
         coachsathi_tokens = list(set(coachsathi_tokens))  # remove duplicates
 
         fcm_tokens = {
