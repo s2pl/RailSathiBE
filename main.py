@@ -32,8 +32,14 @@ app = FastAPI(
 
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.config.fileConfig("logging.ini", disable_existing_loggers=False)
 logger = logging.getLogger(__name__)
+logger.info("Logging loaded from logging.ini")
+
+print("PRINT IS WORKING!")
+logger.error("THIS IS A TEST ERROR")
+logger.info("THIS IS A TEST INFO")
+
 
 from database import get_db_connection
 from psycopg2.extras import RealDictCursor
@@ -251,6 +257,18 @@ async def create_complaint_endpoint_threaded(
                     f"berth_no: {berth_no}"
                     f"}}")
         
+        if complain_description:
+            desc_lower = complain_description.lower()
+
+            linen_keywords = ["bedroll", "bedsheet", "sheet", "bed-sheet"]
+
+            if any(word in desc_lower for word in linen_keywords):
+                complain_type = "linen"
+            else:
+                complain_type = "cleaning"
+        else:
+            complain_type = complain_type or "cleaning"
+
         # Prepare complaint data
         complaint_data = {
             "pnr_number": pnr_number,

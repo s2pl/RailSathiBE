@@ -1,0 +1,72 @@
+name: Deploy RailSathi FastAPI Microservice to UAT
+
+on:
+  push:
+    branches:
+      - uat
+
+env:
+  AWS_INSTANCE_ID: "i-0c83d6615572e73db"
+  AWS_REGION: "ap-south-1"
+  INSTANCE_USERNAME: "sarva"
+
+jobs:
+  deploy-uat-to-uat-aws-server:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Instance IP
+        id: getip
+        run: |
+          echo "Fetching IP for instance: ${{ env.AWS_INSTANCE_ID }}"
+          INSTANCE_IP=$(aws ec2 describe-instances \
+            --instance-ids ${{ env.AWS_INSTANCE_ID }} \
+            --query 'Reservations[0].Instances[0].PublicIpAddress' \
+            --output text)
+
+          if [ -z "$INSTANCE_IP" ]; then
+            echo "❌ Failed to fetch instance IP"
+            exit 1
+          fi
+
+          echo "✅ Instance IP: $INSTANCE_IP"
+          echo "instance_ip=$INSTANCE_IP" >> "$GITHUB_OUTPUT"
+
+      - name: SSH → Pull Code → Restart FastAPI Service
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ steps.getip.outputs.instance_ip }}
+          username: ${{ env.INSTANCE_USERNAME }}
+          key: ${{ secrets.AWS_RLS_SSH_PRIVATE_KEY }}
+          script: |
+            echo "Connected to UAT server"
+
+            echo "Activating virtual environment"
+            source .venv/bin/activate
+
+            echo "Navigating to application directory"
+            cd ~/RailSathiBE/
+
+            echo "Pulling latest code"
+            git fetch --all
+            git reset --hard origin/uat
+
+            echo "Installing dependencies"
+            pip install -r requirements.txt
+
+            export ENV=UAT
+
+            echo "Restarting FastAPI service"
+            sudo systemctl restart railsathi
+
+            echo "✅ Deployment successful for RailSathi FastAPI microservice!"
