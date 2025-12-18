@@ -177,8 +177,8 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
 
         user = user_list[0] if user_list else None
 
-        if user and user.get("user_status") in {"disabled", "blocked", "suspended"}:
-            raise HTTPException(status_code=403, detail="Account is inactive or disabled")
+        if user and user.get("user_status") not in {"enabled"}:
+            raise HTTPException(status_code=403, detail="Account is not enabled")
 
         # Prefer values from DB if available, otherwise fall back to token values
         return {
@@ -234,8 +234,8 @@ async def signup(data: SignupRequest):
         existing_user = cur.fetchone()
 
         if existing_user:
-            if existing_user["user_status"] == "disabled":
-                raise HTTPException(status_code=400, detail="Account is disabled. Please contact support to reactivate.")
+            if existing_user["user_status"] != "enabled":
+                raise HTTPException(status_code=400, detail="Account is not enabled. Please contact support to reactivate.")
             else:
                 raise HTTPException(status_code=400, detail="User already exists")
         
@@ -259,7 +259,7 @@ async def signup(data: SignupRequest):
             (first_name,last_name, username, email, phone, password,
              created_at, created_by, updated_at, updated_by, is_active, staff, railway_admin, enabled,
              user_type_id, user_status)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,TRUE,FALSE,FALSE,TRUE,1,'active')
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,TRUE,FALSE,FALSE,TRUE,11,'enabled')
             RETURNING id, username, phone, email
         """, (data.username, '', data.username, email, data.phone, hashed_password, now, data.username, now, data.username))
 
@@ -311,13 +311,8 @@ async def signin(data: SigninRequest):
 
         user = user_list[0]
         
-        status_messages = {
-            "disabled": "User account is disabled",
-            "suspended": "User account is suspended",
-            "blocked": "User account is blocked"
-        }
-        if user['user_status'] in status_messages:
-            raise HTTPException(status_code=400, detail=status_messages[user['user_status']])
+        if user['user_status'] != "enabled":
+            raise HTTPException(status_code=400, detail="User account is not enabled. Please contact support to enable the account.")
         # Verify password
         if not django_pbkdf2_sha256.verify(data.password, user['password']):
             raise HTTPException(status_code=401, detail="Incorrect password")
