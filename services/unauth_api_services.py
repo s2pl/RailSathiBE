@@ -15,6 +15,7 @@ from utils.email_utils import send_plain_mail, send_passenger_complain_notificat
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, File, UploadFile, HTTPException
 import asyncio
+import requests
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -50,76 +51,46 @@ def sanitize_timestamp(raw_timestamp):
     decoded = unquote(raw_timestamp)
     return get_valid_filename(decoded).replace(":", "_")
 
-def process_media_file_upload(file_content, file_format, complain_id, media_type):
-    """Process and upload media file to Google Cloud Storage"""
+def process_media_file_upload(file_bytes, filename, content_type, product_name, username, folder_name):
     try:
-        created_at = datetime.now().strftime("%Y-%m-%d_%H:%M:%S.%f")
-        unique_id = str(uuid.uuid4())[:5]
-        full_file_name = f"rail_sathi_complain_{complain_id}_{sanitize_timestamp(created_at)}_{unique_id}.{file_format}"
+        base_url = os.getenv("MEDIA_UPLOAD_MS_URL")
+        if not base_url:
+            raise ValueError("MEDIA_UPLOAD_MS_URL is not configured")
 
-        # Use the authenticated client
-        client = get_gcs_client()
-        bucket = client.bucket(GCS_BUCKET_NAME)
-        blob = None
+        is_video = content_type.startswith("video/")
+        file_type = "video" if is_video else "image"
+        endpoint = f"{base_url}/upload-video" if is_video else f"{base_url}/upload-image"
+        
+        files = {file_type: (filename, file_bytes, content_type)}
 
-        if media_type == "image":
-            file_stream = io.BytesIO(file_content)
-            original_image = Image.open(file_stream)
-            if original_image.mode == 'RGBA':
-                original_image = original_image.convert('RGB')
-            new_file = io.BytesIO()
-            original_image.save(new_file, format='JPEG')
-            new_file.seek(0)
-            key = f"rail_sathi_complain_images/{full_file_name}"
-            blob = bucket.blob(key)
-            blob.upload_from_file(new_file, content_type='image/jpeg')
-            #print(f"rail_sathi_complain_images Image uploaded: {full_file_name}")
+        data = {
+            "product_name": product_name,
+            "username": username,
+            "folder_name": folder_name
+        }
 
-        elif media_type == "video":
-            try:
-                temp_dir = "/tmp/rail_sathi_temp"
-                os.makedirs(temp_dir, exist_ok=True)
-                
-                temp_file_path = os.path.join(temp_dir, full_file_name)
-                compressed_file_path = os.path.join(temp_dir, f"compressed_{full_file_name}")
-                
-                with open(temp_file_path, 'wb') as temp_file:
-                    temp_file.write(file_content)
-                
-                clip = VideoFileClip(temp_file_path)
-                target_bitrate = '5000k'
-                try:
-                    clip.write_videofile(compressed_file_path, codec='libx264', bitrate=target_bitrate)
-                    clip.close()
-                except Exception as e:
-                    print(f"Error compressing video: {e}")
-                
-                key = f"rail_sathi_complain_videos/{full_file_name}"
-                blob = bucket.blob(key)
-                with open(compressed_file_path, 'rb') as temp_file:
-                    blob.upload_from_file(temp_file, content_type='video/mp4')
-                #print(f"rail_sathi_complain_videos Video uploaded: {full_file_name}")
-            except Exception as e:
-                print(f'Error while storing video: {repr(e)}')
-            finally:
-                if os.path.exists(compressed_file_path):
-                    os.remove(compressed_file_path)
-                if os.path.exists(temp_file_path):
-                    os.remove(temp_file_path)
+        response = requests.post(
+            endpoint,
+            files=files,
+            data=data,
+            timeout=20
+        )
 
-        if blob:
-            try:
-                url = blob.public_url
-                #print(f"Uploaded file URL: {url}")
-                return url
-            except Exception as e:
-                print(f"Failed to get public URL: {e}")
-                return None
-        else:
-            print("Upload failed (blob is None)")
-            return None
+        response.raise_for_status()
+        result = response.json()
+
+        # Media MS may return different keys
+        if "data_url" in result:
+            return result["data_url"]
+        if "image_url" in result:
+            return result["image_url"]
+        if "url" in result:
+            return result["url"]
+
+        raise ValueError(f"Unexpected media upload response: {result}")
+
     except Exception as e:
-        print(f"Error processing media file: {e}")
+        logger.exception("RailSathi Media upload failed")
         raise e
 
 def upload_file_thread(file_obj, complain_id, user):
@@ -159,7 +130,14 @@ def upload_file_thread(file_obj, complain_id, user):
         logger.info(f"Uploading {media_type} file: {filename}")
         
         # Upload file
-        uploaded_url = process_media_file_upload(file_content, ext, complain_id, media_type)
+        uploaded_url = process_media_file_upload(
+            file_bytes=file_content,
+            filename=filename,
+            content_type=content_type,
+            product_name="railsathi",
+            username=user,
+            folder_name="railsathi"
+        )
         
         if uploaded_url:
             logger.info(f"File uploaded successfully: {uploaded_url}")
@@ -219,7 +197,14 @@ async def upload_file_async(file_obj: UploadFile, complain_id: int, user: str):
         logger.info(f"Uploading {media_type} file: {filename}")
         
         # Upload file
-        uploaded_url = process_media_file_upload(file_content, ext, complain_id, media_type)
+        uploaded_url = process_media_file_upload(
+            file_bytes=file_content,
+            filename=filename,
+            content_type=content_type,
+            product_name="railsathi",
+            username=user,
+            folder_name="railsathi"
+        )
         
         if uploaded_url:
             logger.info(f"File uploaded successfully: {uploaded_url}")
