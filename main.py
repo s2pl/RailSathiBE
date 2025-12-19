@@ -257,6 +257,18 @@ async def create_complaint_endpoint_threaded(
                     f"berth_no: {berth_no}"
                     f"}}")
         
+        if complain_description:
+            desc_lower = complain_description.lower()
+
+            linen_keywords = ["bedroll", "bedsheet", "sheet", "bed-sheet"]
+
+            if any(word in desc_lower for word in linen_keywords):
+                complain_type = "linen"
+            else:
+                complain_type = "cleaning"
+        else:
+            complain_type = complain_type or "cleaning"
+
         # Prepare complaint data
         complaint_data = {
             "pnr_number": pnr_number,
