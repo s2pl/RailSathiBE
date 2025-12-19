@@ -223,14 +223,28 @@ async def signup(data: SignupRequest):
         # -----------------------------
         if not re.match(r'^[1-9]\d{9}$', data.phone):
             raise HTTPException(status_code=400, detail="Invalid phone number")
-        
+
+        name_parts = data.username.split()
+
+        first_name = name_parts[0]
+        middle_name = None
+        last_name = ''
+
+        if len(name_parts) == 2:
+            last_name = name_parts[1]
+        elif len(name_parts) >= 3:
+            middle_name = name_parts[1]
+            last_name = " ".join(name_parts[2:])
+
+        final_username = f"{first_name}_{data.phone}"
+
         # -----------------------------
         # Duplicate checks
         # -----------------------------
         cur.execute("""
             SELECT id, user_status FROM user_onboarding_user
             WHERE phone=%s OR username=%s
-        """, (data.phone, data.username))
+        """, (data.phone, final_username))
         existing_user = cur.fetchone()
 
         if existing_user:
@@ -256,12 +270,12 @@ async def signup(data: SignupRequest):
 
         cur.execute("""
             INSERT INTO user_onboarding_user
-            (first_name,last_name, username, email, phone, password,
+            (first_name, middle_name, last_name, username, email, phone, password,
              created_at, created_by, updated_at, updated_by, is_active, staff, railway_admin, enabled,
              user_type_id, user_status)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,TRUE,FALSE,FALSE,TRUE,11,'enabled')
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,TRUE,FALSE,FALSE,TRUE,11,'enabled')
             RETURNING id, username, phone, email
-        """, (data.username, '', data.username, email, data.phone, hashed_password, now, data.username, now, data.username))
+        """, (first_name, middle_name, last_name, final_username, email, data.phone, hashed_password, now, final_username, now, final_username))
 
         new_user = cur.fetchone()
         conn.commit()
