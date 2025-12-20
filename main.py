@@ -301,8 +301,26 @@ async def create_complaint_endpoint_threaded(
             conn = get_db_connection()
             try:
                 depot_result = execute_query(conn, get_depot_query)
-                train_depot_name = depot_result[0]['Depot'] if depot_result and len(depot_result) > 0 else ''
-                print(f"Train depot found: {train_depot_name}")
+                if depot_result and len(depot_result) > 0:
+                    train_depot_name = depot_result[0]['Depot']
+                    print(f"Train depot found: {train_depot_name}")
+
+                else:
+                    insert_train_query = f"""
+                    INSERT INTO trains_traindetails(
+                        train_no, up_down, related_train, train_name, train_type, frequency, from_station, to_station, start_time, 
+                        end_time, charting_time, charting_day, stopages_in_sequence, arrival_time, "Depot", division, created_by,
+                        attendance_stations, coaches_in_sequence, coach_sequence_updated_by, coach_sequence_updated_at, media_upload_enabled,
+                        is_time_resriction, is_location_restriction)
+                    VALUES(
+                        {train_number}, 'U', NULL, '{train_name}', 'UNKNOWN', '[1]', 'NA', 'NA', '00:00:00', '00:00:00', '00:00:00',
+                        'NA','[]', '[]', 'Other', NULL, 'SYSTEM', '[]', '[]', 'SYSTEM', NOW(), FALSE, FALSE, FALSE);
+                    """
+                    execute_query(conn, insert_train_query)
+                    conn.commit()
+
+                    print(f"New train created: Train No = {train_number}, Depot = Other")
+                    
             except Exception as e:
                 logger.error(f"Error fetching depot: {str(e)}")
                 train_depot_name = ''
