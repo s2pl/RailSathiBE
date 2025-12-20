@@ -255,7 +255,7 @@ async def create_complaint_endpoint_threaded(
                 # Prepare email details
                 env = os.getenv('ENV')
                 if not train_depot_name:
-                    train_depot_name = "(Not found in database)"
+                    train_depot_name = "Other"
 
                 if env == 'UAT':
                     subject = f"UAT | {train_number} ({train_depot_name}) No War Room User RailSathi(WRUR) Found !"
