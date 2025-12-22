@@ -180,7 +180,7 @@ async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional
 
         # Handle empty results
         if not complaints or len(complaints) == 0:
-            raise HTTPException(status_code=404, detail="No complaints found for the given date.")
+            raise HTTPException(status_code=404, detail="You haven't raised any complaints on {complaint_date}".format(complaint_date=date_str))
         
         # Wrap each complaint in the expected response format
         response_list = []

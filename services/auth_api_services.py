@@ -12,7 +12,7 @@ import logging
 from services.unauth_api_services import (
     create_complaint, get_complaint_by_id, get_complaints_by_date_username_depot,
     update_complaint, delete_complaint, delete_complaint_media,
-    upload_file_thread
+    upload_file_thread, get_complaints_by_date_and_mobile
 )
 
 import re, logging
@@ -77,9 +77,10 @@ async def get_complaint(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/complaint/get/date/{date_str}", response_model=List[RailSathiComplainResponse])
-async def get_complaints_by_date_endpoint(
+async def get_complaints_by_date_and_mobile_endpoint(
     date_str: str,
-    current_user: dict = Depends(get_current_user)):
+    current_user: dict = Depends(get_current_user),
+    mobile_number: Optional[str] = None):
     """Get complaints by date and username
 
     **created by - Asad Khan (Authentication only)**
@@ -107,16 +108,17 @@ async def get_complaints_by_date_endpoint(
                 detail="Invalid date format. Could not parse date."
             )
 
-        username = str(current_user.get("username")) #get logged in user
-
+        if not mobile_number:
+            mobile_number = current_user.get("phone")
+        
         # ✅ Convert to standard YYYY-MM-DD format
         normalized_date = complaint_date.strftime("%Y-%m-%d")
 
-        complaints = get_complaints_by_date_username_depot(complaint_date, username) #username will taken from logged in user via token
+        complaints = get_complaints_by_date_and_mobile(complaint_date, mobile_number)
         logging.info(f"complaint: {complaints}")
 
         if not complaints or len(complaints) == 0:
-            raise HTTPException(status_code=404, detail="No complaints found for the given date")
+            raise HTTPException(status_code=404, detail="You haven't raised any complaints on {complaint_date}".format(complaint_date=normalized_date))
 
         # Wrap each complaint in the expected response format
         response_list = []

@@ -564,8 +564,23 @@ def get_complaints_by_date_and_mobile(complain_create_date: date, mobile_number:
             user_depots_result = execute_query(conn, user_depots_query, (mobile_number,))
             
             if not user_depots_result:
-                logger.info(f"No depots found for mobile number: {mobile_number}")
-                return []
+                logger.info(f"No depots found for mobile number: {mobile_number}, "
+                    f"Falling back to mobile filtering on given date.")
+                
+                query = """
+                    SELECT c.complain_id, c.pnr_number, c.is_pnr_validated, c.name, c.mobile_number,
+                        c.complain_type, c.complain_description, c.complain_date, c.complain_status,
+                        c.train_id, c.train_number, c.train_name, c.coach, c.berth_no,
+                        c.submission_status, c.created_at, c.created_by, c.updated_at, c.updated_by
+                    FROM rail_sathi_railsathicomplain c
+                    WHERE c.complain_date = %s
+                        AND c.mobile_number::varchar = %s
+                    ORDER BY c.created_at DESC
+                """
+                params = [complain_create_date, mobile_number]
+                
+                complaints = execute_query(conn, query, params)
+                return complaints
             
             depot_codes = [depot['depot_code'] for depot in user_depots_result]
             depot_names = [f"{depot['depot_code']} ({depot.get('depot_name', 'N/A')})" for depot in user_depots_result]
@@ -626,7 +641,7 @@ def get_complaints_by_date_and_mobile(complain_create_date: date, mobile_number:
                        t.train_name as train_detail_name, t."Depot" as train_depot
                 FROM rail_sathi_railsathicomplain c
                 LEFT JOIN trains_traindetails t ON CAST(t.train_no AS VARCHAR) = c.train_number
-                WHERE DATE(c.created_at) = %s
+                WHERE c.complain_date = %s
                 ORDER BY c.created_at DESC
             """
             params = [complain_create_date]
