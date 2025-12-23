@@ -283,6 +283,35 @@ def test_gcs_connection():
 #     finally:
 #         conn.close()
 
+def get_complaints_by_date_and_mobile_for_passengers(complain_date: date, mobile_number: str):
+    """
+    Fetch complaints for passengers using complain_date and mobile number
+    """
+    conn = get_db_connection()
+    try:
+        print("New function called")
+        logger.info(f"Fetching passenger complaints for date={complain_date}, mobile={mobile_number}")
+
+        query = """
+            SELECT c.complain_id, c.pnr_number, c.is_pnr_validated, c.name, c.mobile_number,
+                   c.complain_type, c.complain_description, c.complain_date, c.complain_status,
+                   c.train_id, c.train_number, c.train_name, c.coach, c.berth_no,
+                   c.submission_status, c.created_at, c.created_by, c.updated_at, c.updated_by
+            FROM rail_sathi_railsathicomplain c
+            WHERE c.complain_date = %s
+              AND c.mobile_number::varchar = %s
+            ORDER BY c.created_at DESC
+        """
+
+        params = [complain_date, mobile_number]
+        return execute_query(conn, query, params)
+
+    except Exception as e:
+        logger.error(f"Error fetching passenger complaints by date and mobile: {str(e)}")
+        raise
+    finally:
+        conn.close()
+
 def create_complaint(complaint_data):
     """Create a new complaint"""
     conn = get_db_connection()
