@@ -643,6 +643,23 @@ def get_complaints_by_date_and_mobile(complain_create_date: date, mobile_number:
                 ORDER BY c.created_at DESC
             """
             params = [complain_create_date, train_numbers]
+
+            assigned_train_query = """ 
+                SELECT DISTINCT train.train_no
+                FROM trains_trainaccess ta
+                CROSS JOIN LATERAL jsonb_each(ta.train_details) AS train(train_no, assignments)
+                CROSS JOIN LATERAL jsonb_array_elements(assignments) AS assignment
+                WHERE ta.user_id = (
+                    SELECT id FROM user_onboarding_user WHERE phone = %s
+                )
+                AND (
+                    assignment->>'end_date' = 'ongoing'
+                    OR (assignment->>'end_date')::date >= CURRENT_DATE
+                );
+            """
+            assigned_train_rows = execute_query(conn, assigned_train_query, (mobile_number,))
+            assigned_trains = {str(r["train_no"]) for r in assigned_train_rows}
+
         else:
             logger.info(f"Fetching all complaints for date: {complain_create_date}")
             
@@ -659,7 +676,8 @@ def get_complaints_by_date_and_mobile(complain_create_date: date, mobile_number:
                 ORDER BY c.created_at DESC
             """
             params = [complain_create_date]
-        
+
+
         # Execute main query
         complaints = execute_query(conn, query, params)
 
@@ -723,7 +741,35 @@ def get_complaints_by_date_and_mobile(complain_create_date: date, mobile_number:
             complaint['train_name'] = train_name
         
         logger.info(f"Successfully processed {len(complaints)} complaints with media files")
-        return complaints
+        
+        if not mobile_number:
+            return {
+                "assigned_complaints": [],
+                "other_complaints": complaints
+            }
+
+        assigned_complaints = []
+        other_complaints = []
+
+        for comp in complaints:
+            train_no = (comp.get("train_number") or "").strip()
+            train_depot = comp.get("train_depot") or ""
+
+            # Assigned complaints only trains user is assigned to
+            if train_no in assigned_trains:
+                assigned_complaints.append(comp)
+
+            # Other complaints only depot trains, excluding assigned trains
+            elif train_depot in depot_codes:
+                other_complaints.append(comp)
+
+        logger.info(f"Assigned complaints count = {len(assigned_complaints)}")
+        logger.info(f"Other complaints count = {len(other_complaints)}")
+
+        return {
+            "assigned_complaints": assigned_complaints,
+            "other_complaints": other_complaints
+        }
         
     except Exception as e:
         logger.error(f"Database error in get_complaints_by_date_and_mobile: {str(e)}")
