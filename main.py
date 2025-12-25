@@ -135,6 +135,8 @@ class RSComplainUnsecuredGetData(BaseModel):
     train_depot: Optional[str] = None
     rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse] = []
     support_contact: Optional[str] = ""  # <-- Support contact field
+    support_contact_name: Optional[str] = ""  # <-- Support contact name field
+    support_contact_ut: Optional[str] = ""  # <-- Support contact utils field
 
 
 class RSComplainUnsecuredGetResponse(BaseModel):
