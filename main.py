@@ -112,6 +112,37 @@ class RailSathiComplainGetData(BaseModel):
     train_depot: Optional[str] = None
     rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse] = []
 
+class RSComplainUnsecuredGetData(BaseModel):
+    """Data model for unsecured complaint endpoint with support_contact"""
+    complain_id: int
+    pnr_number: Optional[str] = None
+    is_pnr_validated: Optional[str] = None
+    name: Optional[str] = None
+    mobile_number: Optional[str] = None
+    complain_type: Optional[str] = None
+    complain_description: Optional[str] = None
+    complain_date: Optional[date] = None
+    complain_status: str
+    train_id: Optional[int] = None
+    train_number: Optional[str] = None
+    train_name: Optional[str] = None
+    coach: Optional[str] = None
+    berth_no: Optional[int] = None
+    created_at: datetime
+    created_by: Optional[str] = None
+    updated_at: datetime
+    updated_by: Optional[str] = None
+    train_depot: Optional[str] = None
+    rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse] = []
+    support_contact: Optional[str] = ""  # <-- Support contact field
+    support_contact_name: Optional[str] = ""  # <-- Support contact name field
+    support_contact_ut: Optional[str] = ""  # <-- Support contact utils field
+
+
+class RSComplainUnsecuredGetResponse(BaseModel):
+    """Response model for unsecured complaint endpoint"""
+    message: str
+    data: RSComplainUnsecuredGetData
 
 # Response wrapper that matches your actual API response structure
 # For GET operations (without customer_care)
@@ -166,7 +197,7 @@ async def get_complaint(complain_id: int):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@app.get("/rs_microservice/complaint/get/date/{date_str}", response_model=List[RailSathiComplainGetResponse])
+@app.get("/rs_microservice/complaint/get/date/{date_str}", response_model=List[RSComplainUnsecuredGetResponse])
 async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional[str] = None):
     """Get complaints by date and mobile number"""
     try:
@@ -186,7 +217,7 @@ async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional
         response_list = []
         for complaint in complaints:
             try:
-                response_list.append(RailSathiComplainGetResponse(
+                response_list.append(RSComplainUnsecuredGetResponse(
                     message="Complaint retrieved successfully",
                     data=complaint
                 ))
@@ -196,7 +227,7 @@ async def get_complaints_by_date_endpoint(date_str: str, mobile_number: Optional
                 # Add the missing field and try again
                 try:
                     complaint['customer_care'] = None
-                    response_list.append(RailSathiComplainGetResponse(
+                    response_list.append(RSComplainUnsecuredGetResponse(
                         message="Complaint retrieved successfully",
                         data=complaint
                     ))

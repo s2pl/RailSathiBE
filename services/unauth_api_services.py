@@ -16,10 +16,37 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Form, File, UploadFile, HTTPException
 import asyncio
 import requests
+from utils.train_journey_utils import is_user_assigned_on_journey_date
+import sys
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+os.makedirs("logs", exist_ok=True)
+
+# Get logger
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)  # Set to DEBUG to capture all levels
+
+# Remove existing handlers to avoid duplicates
+if logger.handlers:
+    logger.handlers.clear()
+
+# Console handler - shows INFO and above
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.WARNING)
+console_format = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+console_handler.setFormatter(console_format)
+
+# File handler for all logs - saves INFO and above
+file_handler = logging.FileHandler("logs/rs_logs.log")
+file_handler.setLevel(logging.WARNING)  # Changed from ERROR to INFO
+file_format = logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s")
+file_handler.setFormatter(file_format)
+
+# Add handlers
+logger.addHandler(console_handler)
+logger.addHandler(file_handler)
+
+# Prevent propagation to root logger (avoids duplicate logs)
+logger.propagate = False
 
 load_dotenv()
 
@@ -283,6 +310,35 @@ def test_gcs_connection():
 #     finally:
 #         conn.close()
 
+def get_complaints_by_date_and_mobile_for_passengers(complain_date: date, mobile_number: str):
+    """
+    Fetch complaints for passengers using complain_date and mobile number
+    """
+    conn = get_db_connection()
+    try:
+        print("New function called")
+        logger.info(f"Fetching passenger complaints for date={complain_date}, mobile={mobile_number}")
+
+        query = """
+            SELECT c.complain_id, c.pnr_number, c.is_pnr_validated, c.name, c.mobile_number,
+                   c.complain_type, c.complain_description, c.complain_date, c.complain_status,
+                   c.train_id, c.train_number, c.train_name, c.coach, c.berth_no,
+                   c.submission_status, c.created_at, c.created_by, c.updated_at, c.updated_by
+            FROM rail_sathi_railsathicomplain c
+            WHERE c.complain_date = %s
+              AND c.mobile_number::varchar = %s
+            ORDER BY c.created_at DESC
+        """
+
+        params = [complain_date, mobile_number]
+        return execute_query(conn, query, params)
+
+    except Exception as e:
+        logger.error(f"Error fetching passenger complaints by date and mobile: {str(e)}")
+        raise
+    finally:
+        conn.close()
+
 def create_complaint(complaint_data):
     """Create a new complaint"""
     conn = get_db_connection()
@@ -544,16 +600,350 @@ def get_complaints_by_date_username_depot(complain_create_date: date, username: 
         raise e
     finally:
         conn.close()
+        
+
+import json
+
+from datetime import date, datetime, timedelta
+from typing import Optional, Dict, List, Tuple, Set
+import json
+
+# Assuming these are imported from your existing modules
+# from database import get_db_connection, execute_query
+
+# Coach prefixes that require exact coach matching
+EXACT_MATCH_COACH_PREFIXES = ('A', 'B', 'M', 'G', 'H', 'C')
+
+
+def get_support_contacts_for_complaints(
+    conn,
+    query_date: date,
+    train_coach_pairs: Set[Tuple[str, str]]
+) -> Dict[Tuple[str, str], Dict[str, str]]:
+    """
+    Fetch support contacts for the specific train+coach combinations.
+
+    Logic:
+    - If coach starts with A, B, M, G, H, C → exact coach match required
+    - For other coaches (S, D, E, etc.) → find EHK user for that train+date (no coach match needed)
+
+    Args:
+        conn: Database connection
+        query_date: The date to check assignments for
+        train_coach_pairs: Set of (train_number, coach) tuples from actual complaints
+
+    Returns:
+        Dictionary with (train_number, coach) as key and dict with 'phone' and 'name' as value
+    """
+    cache = {}
+    
+    if not train_coach_pairs:
+        return cache
+    
+    # Extract unique train numbers from complaints (normalize them)
+    complaint_trains = set()
+    for train_no, coach in train_coach_pairs:
+        if train_no:
+            complaint_trains.add(train_no)
+            clean = train_no.lstrip('0') or '0'
+            complaint_trains.add(clean)
+    
+    if not complaint_trains:
+        return cache
+    
+    logger.info(f"Finding support contacts for {len(train_coach_pairs)} train+coach pairs, {len(complaint_trains)} unique trains")
+    
+    try:
+        # ============================================================
+        # STEP 1: Fetch journey details ONLY for trains in complaints
+        # ============================================================
+        train_numbers_int = []
+        for t in complaint_trains:
+            try:
+                clean = t.lstrip('0') or '0'
+                if clean.isdigit():
+                    train_numbers_int.append(int(clean))
+            except:
+                pass
+        
+        train_numbers_int = list(set(train_numbers_int))
+        
+        if not train_numbers_int:
+            logger.info("No valid train numbers to query")
+            return cache
+        
+        train_journey_cache = {}
+        train_details_query = """
+            SELECT train_no, journey_duration_days, end_time
+            FROM trains_traindetails
+            WHERE train_no = ANY(%s)
+        """
+        
+        train_details_result = execute_query(conn, train_details_query, (train_numbers_int,))
+        
+        if train_details_result:
+            for row in train_details_result:
+                train_no = str(row.get('train_no', ''))
+                journey_duration = row.get('journey_duration_days') or 1
+                end_time = row.get('end_time')
+                
+                if end_time and hasattr(end_time, 'strftime'):
+                    end_time = end_time.strftime("%H:%M:%S")
+                else:
+                    end_time = "23:59:59"
+                
+                train_journey_cache[train_no] = {
+                    "journey_duration_days": journey_duration,
+                    "end_time": end_time
+                }
+        
+        logger.info(f"Loaded journey details for {len(train_journey_cache)} trains")
+        
+        # ============================================================
+        # STEP 2: Fetch users with train access
+        # ============================================================
+        assigned_users_query = """
+            SELECT u.phone, u.first_name, u.last_name, u.id, ta.train_details
+            FROM user_onboarding_user u
+            JOIN trains_trainaccess ta ON ta.user_id = u.id
+            WHERE ta.train_details IS NOT NULL
+            AND ta.train_details != '{}'
+            AND ta.train_details != 'null'
+            AND u.user_status = 'enabled'
+            AND u.phone IS NOT NULL
+            AND u.phone != ''
+        """
+        
+        assigned_users_raw = execute_query(conn, assigned_users_query)
+        
+        if not assigned_users_raw:
+            logger.info("No coach-assigned users found")
+            return cache
+        
+        logger.info(f"Processing {len(assigned_users_raw)} users with train access")
+        
+        # ============================================================
+        # STEP 3: Process assignments
+        # ============================================================
+        query_date_str = query_date.strftime('%Y-%m-%d')
+        validation_time = datetime.combine(query_date, datetime.max.time())
+        
+        # Pre-compute complaint train set for fast lookup
+        complaint_trains_normalized = set()
+        for t in complaint_trains:
+            complaint_trains_normalized.add(t)
+            complaint_trains_normalized.add(t.lstrip('0') or '0')
+        
+        # Separate caches:
+        # 1. exact_coach_cache: for coaches starting with A, B, M, G, H, C
+        # 2. ehk_train_cache: for EHK users by train (no coach match needed)
+        exact_coach_cache = {}  # key: (train_no, coach) -> {'phone': str, 'name': str}
+        ehk_train_cache = {}    # key: train_no -> ({'phone': str, 'name': str}, date)
+        
+        users_processed = 0
+        
+        for user in assigned_users_raw:
+            try:
+                train_details_str = user.get('train_details', '{}')
+
+                if isinstance(train_details_str, str):
+                    train_details = json.loads(train_details_str)
+                else:
+                    train_details = train_details_str
+
+                phone = user.get('phone', '')
+                if not phone:
+                    continue
+
+                # Construct full name from first_name and last_name
+                first_name = user.get('first_name', '').strip()
+                last_name = user.get('last_name', '').strip()
+                full_name = f"{first_name} {last_name}".strip() if first_name or last_name else ''
+
+                user_contact_info = {
+                    'phone': phone,
+                    'name': full_name
+                }
+
+                users_processed += 1
+                
+                # Only process trains that are in our complaints
+                for train_no, access_list in train_details.items():
+                    train_no_str = str(train_no).strip()
+                    clean_train = train_no_str.lstrip('0') or '0'
+                    
+                    # SKIP if this train is not in our complaints
+                    if train_no_str not in complaint_trains_normalized and clean_train not in complaint_trains_normalized:
+                        continue
+                    
+                    # Get journey details from cache
+                    journey_info = train_journey_cache.get(clean_train, {
+                        "journey_duration_days": 1,
+                        "end_time": "23:59:59"
+                    })
+                    
+                    for access in access_list:
+                        origin_date_str = access.get('origin_date', '')
+                        if not origin_date_str:
+                            continue
+                        
+                        # Get user type (ut)
+                        user_type = access.get('ut', '')
+                        
+                        # Quick date range check
+                        try:
+                            origin_date = datetime.strptime(origin_date_str, "%Y-%m-%d").date()
+                            journey_days = journey_info["journey_duration_days"]
+                            last_date = origin_date + timedelta(days=journey_days - 1)
+                            
+                            # Skip if query_date is outside possible range
+                            if query_date < origin_date or query_date > last_date:
+                                continue
+                            
+                            # REMOVE THIS ENTIRE BLOCK - No time validation
+                            # is_assigned = True
+                            # if query_date == last_date:
+                            #     try:
+                            #         end_time = datetime.strptime(journey_info["end_time"], "%H:%M:%S").time()
+                            #         if validation_time.time() >= end_time:
+                            #             is_assigned = False
+                            #     except:
+                            #         pass
+                            # 
+                            # if not is_assigned:
+                            #     continue
+                            
+                            # Just check coach/user type directly
+                            coach_numbers = access.get("coach_numbers", [])
+                            
+                            # Store in exact_coach_cache for exact matching (A, B, M, G, H, C coaches)
+                            for coach in coach_numbers:
+                                coach_upper = str(coach).strip().upper()
+
+                                # Add to exact coach cache
+                                key1 = (train_no_str, coach_upper)
+                                key2 = (clean_train, coach_upper)
+
+                                if key1 not in exact_coach_cache:
+                                    exact_coach_cache[key1] = user_contact_info
+                                if key2 not in exact_coach_cache:
+                                    exact_coach_cache[key2] = user_contact_info
+
+                            # If user is EHK, also store in ehk_train_cache for non-exact matching
+                            if user_type == 'EHK':
+                                current_entry = ehk_train_cache.get(train_no_str)
+                                if current_entry is None or origin_date > current_entry[1]:
+                                    ehk_train_cache[train_no_str] = (user_contact_info, origin_date)
+
+                                current_entry_clean = ehk_train_cache.get(clean_train)
+                                if current_entry_clean is None or origin_date > current_entry_clean[1]:
+                                    ehk_train_cache[clean_train] = (user_contact_info, origin_date)
+                            
+                        except (ValueError, TypeError):
+                            continue
+                            
+            except (json.JSONDecodeError, TypeError):
+                continue
+        
+        logger.info(f"Processed {users_processed} users")
+        logger.info(f"Exact coach cache: {len(exact_coach_cache)} entries")
+        logger.info(f"EHK train cache: {len(ehk_train_cache)} entries")
+        
+        # ADD THIS: Log specific keys we care about
+        logger.info(f"exact_coach_cache keys for train 12333: {[k for k in exact_coach_cache.keys() if '12333' in str(k)]}")
+        logger.info(f"exact_coach_cache[('12333', 'A1')] = {exact_coach_cache.get(('12333', 'A1'), 'NOT FOUND')}")
+        
+        
+        # ============================================================
+        # STEP 4: Build final cache based on coach prefix rules
+        # ============================================================
+        for train_no, coach in train_coach_pairs:
+            if not train_no or not coach:
+                continue
+
+            coach_upper = coach.strip().upper()
+            train_no_str = str(train_no).strip()
+            clean_train = train_no_str.lstrip('0') or '0'
+
+            support_contact_info = {'phone': '', 'name': '', 'support_contact_ut': ''}
+
+            # Check if coach requires exact matching (starts with A, B, M, G, H, C)
+            if coach_upper.startswith(EXACT_MATCH_COACH_PREFIXES):
+                # Exact coach match required
+                key1 = (train_no_str, coach_upper)
+                key2 = (clean_train, coach_upper)
+
+                contact_data = exact_coach_cache.get(key1) or exact_coach_cache.get(key2) or {'phone': '', 'name': ''}
+                support_contact_info = {
+                    'phone': contact_data.get('phone', ''),
+                    'name': contact_data.get('name', ''),
+                    'support_contact_ut': 'CA'
+                }
+                logger.info(f"Cache contains key ('12333', 'A1'): {('12333', 'A1') in exact_coach_cache}")
+                logger.info(f"Cache contains key ('12333', 'A1'): {exact_coach_cache.get(('12333', 'A1'), 'NOT FOUND')}")
+                logger.info(f"STEP4 exact match lookup: key1={key1}, key2={key2}, "
+                       f"exact_cache.get(key1)={exact_coach_cache.get(key1, 'MISS')}, "
+                       f"exact_cache.get(key2)={exact_coach_cache.get(key2, 'MISS')}, "
+                       f"final support_contact_info={support_contact_info!r}")
+
+
+                if support_contact_info.get('phone'):
+                    logger.debug(f"Exact match found for train={train_no_str}, coach={coach_upper}")
+            else:
+                # For other coaches (S, D, E, etc.) - find EHK user for train (no coach match)
+                ehk_entry = ehk_train_cache.get(train_no_str) or ehk_train_cache.get(clean_train)
+                contact_data = ehk_entry[0] if ehk_entry else {'phone': '', 'name': ''}
+                support_contact_info = {
+                    'phone': contact_data.get('phone', ''),
+                    'name': contact_data.get('name', ''),
+                    'support_contact_ut': 'EHK'
+                }
+
+                if not support_contact_info.get('phone'):
+                    logger.warning(f"No EHK match for train={train_no_str}, coach={coach_upper}")
+
+                if support_contact_info.get('phone'):
+                    logger.debug(f"EHK match found for train={train_no_str}, coach={coach_upper}, contact={support_contact_info}")
+                else:
+                    logger.warning(f"No EHK match for train={train_no_str}, coach={coach_upper}")
+
+            # Store in final cache
+            cache[(train_no_str, coach_upper)] = support_contact_info
+            cache[(clean_train, coach_upper)] = support_contact_info
+
+            if train_no_str == '12333' and coach_upper == 'A1':
+                logger.info(f"STEP4 storing cache[('12333', 'A1')] = {support_contact_info!r}")
+
+            if not train_no_str.startswith('0'):
+                cache[('0' + train_no_str, coach_upper)] = support_contact_info
+        
+        logger.info(f"Final support_contact cache: {len(cache)} entries")
+        logger.info(f"Final cache[('12333', 'A1')] = {cache.get(('12333', 'A1'), 'NOT FOUND')}")
+        if logger.isEnabledFor(logging.DEBUG):
+            sample_keys = list(cache.keys())[:10]
+            logger.debug(f"Sample cache keys: {sample_keys}")
+
+        # Log some sample matches for debugging
+        matched_count = sum(1 for v in cache.values() if v.get('phone'))
+        logger.info(f"Complaints with support_contact: {matched_count}/{len(cache)}")
+        
+        return cache
+        
+    except Exception as e:
+        logger.error(f"Error in get_support_contacts_for_complaints: {str(e)}")
+        return cache
+
 
 def get_complaints_by_date_and_mobile(complain_create_date: date, mobile_number: Optional[str] = None):
     """Get complaints by date and optionally filtered by user's depot trains"""
     conn = get_db_connection()
     try:
-        # If mobile number is provided, first get user's depots and trains
+        # ============================================================
+        # STEP 1: Fetch complaints FIRST
+        # ============================================================
         if mobile_number:
             logger.info(f"Fetching complaints for mobile: {mobile_number}, date: {complain_create_date}")
             
-            # Get user's depot codes
             user_depots_query = """
                 SELECT d.depot_code, d.depot_name
                 FROM user_onboarding_user u
@@ -568,39 +958,28 @@ def get_complaints_by_date_and_mobile(complain_create_date: date, mobile_number:
                 return []
             
             depot_codes = [depot['depot_code'] for depot in user_depots_result]
-            depot_names = [f"{depot['depot_code']} ({depot.get('depot_name', 'N/A')})" for depot in user_depots_result]
-            logger.info(f"User's depots: {', '.join(depot_names)}")
             
-            # Get train numbers for these depots
             train_numbers_query = """
-                SELECT DISTINCT train_no, train_name, "Depot"
+                SELECT DISTINCT train_no
                 FROM trains_traindetails
                 WHERE "Depot" = ANY(%s)
             """
             train_numbers_result = execute_query(conn, train_numbers_query, (depot_codes,))
             
             if not train_numbers_result:
-                logger.info(f"No trains found for depots: {', '.join(depot_codes)}")
+                logger.info(f"No trains found for depots")
                 return []
             
-            # Convert train numbers to strings for comparison with CharField
-            # Include both with and without leading zeros for all train numbers
             train_numbers = []
             for train in train_numbers_result:
                 train_no = str(train['train_no'])
                 train_numbers.append(train_no)
-                # Add version with leading zero prepended
                 train_numbers.append('0' + train_no)
-                # If train number starts with 0, also add version without leading zero
                 if train_no.startswith('0'):
                     train_numbers.append(train_no.lstrip('0') or '0')
             
             unique_train_numbers = list(set(train_numbers))
-            logger.info(f"Total trains in user's depots: {len(unique_train_numbers)} unique train numbers")
-            logger.info(f"Sample trains: {', '.join(unique_train_numbers[:10])}{'...' if len(unique_train_numbers) > 10 else ''}")
             
-            # Main query with train number filter
-            # JOIN using CAST to match CharField with IntegerField
             query = """
                 SELECT c.complain_id, c.pnr_number, c.is_pnr_validated, c.name, c.mobile_number,
                        c.complain_type, c.complain_description, c.complain_date, c.complain_status,
@@ -613,11 +992,10 @@ def get_complaints_by_date_and_mobile(complain_create_date: date, mobile_number:
                   AND c.train_number = ANY(%s)
                 ORDER BY c.created_at DESC
             """
-            params = [complain_create_date, train_numbers]
+            params = [complain_create_date, unique_train_numbers]
         else:
             logger.info(f"Fetching all complaints for date: {complain_create_date}")
             
-            # Query without mobile filter - get all complaints for the date
             query = """
                 SELECT c.complain_id, c.pnr_number, c.is_pnr_validated, c.name, c.mobile_number,
                        c.complain_type, c.complain_description, c.complain_date, c.complain_status,
@@ -631,73 +1009,120 @@ def get_complaints_by_date_and_mobile(complain_create_date: date, mobile_number:
             """
             params = [complain_create_date]
         
-        # Execute main query
         complaints = execute_query(conn, query, params)
 
         if not complaints:
-            logger.info(f"No complaints found for the given criteria")
-            
-            # If mobile_number was provided, check if there are complaints for this date that we filtered out
-            if mobile_number:
-                check_query = """
-                    SELECT DISTINCT c.train_number, t."Depot" as depot
-                    FROM rail_sathi_railsathicomplain c
-                    LEFT JOIN trains_traindetails t ON CAST(t.train_no AS VARCHAR) = c.train_number
-                    WHERE DATE(c.created_at) = %s
-                """
-                all_trains_with_complaints = execute_query(conn, check_query, [complain_create_date])
-                if all_trains_with_complaints:
-                    logger.info(f"Total complaints for this date across all depots: {len(all_trains_with_complaints)}")
-            
+            logger.info(f"No complaints found")
             return []
         
         logger.info(f"Found {len(complaints)} complaints for date {complain_create_date}")
         
-        # Log summary of complaints by train
-        train_complaint_counts = {}
+        # ============================================================
+        # STEP 2: Extract unique train+coach pairs from complaints
+        # ============================================================
+        train_coach_pairs: Set[Tuple[str, str]] = set()
         for complaint in complaints:
-            train_no = complaint.get('train_number', 'Unknown')
-            train_complaint_counts[train_no] = train_complaint_counts.get(train_no, 0) + 1
+            train_number = str(complaint.get('train_number', '')).strip()
+            coach = str(complaint.get('coach', '')).strip().upper()
+            if train_number and coach:
+                train_coach_pairs.add((train_number, coach))
+                clean_train = train_number.lstrip('0') or '0'
+                train_coach_pairs.add((clean_train, coach))
         
-        logger.info(f"Complaints distribution by train: {dict(list(train_complaint_counts.items())[:10])}")
+        logger.info(f"Unique train+coach pairs in complaints: {len(train_coach_pairs)}")
         
-        # Get media files for each complaint
+        # ============================================================
+        # STEP 3: Get support contacts with new coach prefix logic
+        # ============================================================
+        support_contact_cache = get_support_contacts_for_complaints(conn, complain_create_date, train_coach_pairs)
+        logger.info(f"Support contact cache: {len(support_contact_cache)} entries")
+
+        
+        for train_no, coach in train_coach_pairs:
+            logger.info(f"STEP4: Looking up train_no={train_no!r}, coach={coach!r}")
+        # ============================================================
+        # STEP 4: Batch fetch media files
+        # ============================================================
+        complaint_ids = [c.get('complain_id') for c in complaints if c.get('complain_id')]
+        
+        media_cache = {}
+        if complaint_ids:
+            media_query = """
+                SELECT complain_id, id, media_type, media_url, created_at, updated_at, created_by, updated_by
+                FROM rail_sathi_railsathicomplainmedia
+                WHERE complain_id = ANY(%s)
+            """
+            try:
+                media_files = execute_query(conn, media_query, (complaint_ids,))
+                if media_files:
+                    for media in media_files:
+                        cid = media.get('complain_id')
+                        if cid not in media_cache:
+                            media_cache[cid] = []
+                        media_cache[cid].append(media)
+            except Exception as media_error:
+                logger.error(f"Error fetching media: {str(media_error)}")
+        
+        # ============================================================
+        # STEP 5: Process each complaint
+        # ============================================================
         for complaint in complaints:
             complaint_id = complaint.get('complain_id')
-            if complaint_id:
-                media_query = """
-                    SELECT id, media_type, media_url, created_at, updated_at, created_by, updated_by
-                    FROM rail_sathi_railsathicomplainmedia
-                    WHERE complain_id = %s
-                """
-                
-                try:
-                    media_conn = get_db_connection()
-                    media_files = execute_query(media_conn, media_query, (complaint_id,))
-                    complaint['rail_sathi_complain_media_files'] = media_files if media_files else []
-                except Exception as media_error:
-                    logger.error(f"Error fetching media for complaint {complaint_id}: {str(media_error)}")
-                    complaint['rail_sathi_complain_media_files'] = []
-                finally:
-                    media_conn.close()
-            else:
-                complaint['rail_sathi_complain_media_files'] = []
             
-            # Add customer_care field
+            complaint['rail_sathi_complain_media_files'] = media_cache.get(complaint_id, [])
             complaint['customer_care'] = None
+            complaint['train_depot'] = complaint.get('train_depot', '')
+            complaint['train_name'] = complaint.get('train_detail_name') or complaint.get('train_name', '')
             
-            # Get depot and train name from JOIN result
-            train_depot_name = complaint.get('train_depot', '')
-            train_name = complaint.get('train_detail_name') or complaint.get('train_name', '')
-            
-            complaint['train_depot'] = train_depot_name
-            complaint['train_name'] = train_name
-        
-        logger.info(f"Successfully processed {len(complaints)} complaints with media files")
+            # Support contact lookup with better matching
+            train_number = str(complaint.get('train_number', '')).strip()
+            coach = str(complaint.get('coach', '')).strip().upper()
+
+            support_contact = ''
+            support_contact_name = ''
+            support_contact_ut = ''
+            if train_number and coach:
+                # Try original train number first
+                cache_key = (train_number, coach)
+                contact_info = support_contact_cache.get(cache_key, {'phone': '', 'name': '', 'support_contact_ut': ''})
+
+                if train_number == '12333' and coach == 'A1':
+                    logger.info(f"STEP5 lookup: cache_key={cache_key}, "
+                               f"support_contact_cache.get({cache_key})={support_contact_cache.get(cache_key, 'MISS')}, "
+                               f"all 12333 keys in cache: {[k for k in support_contact_cache.keys() if '12333' in str(k)]}")
+
+
+                # Try with leading zero
+                if not contact_info.get('phone'):
+                    cache_key_with_zero = ('0' + train_number, coach)
+                    contact_info = support_contact_cache.get(cache_key_with_zero, {'phone': '', 'name': '', 'support_contact_ut': ''})
+
+                # Try cleaned train number (remove leading zeros)
+                if not contact_info.get('phone'):
+                    clean_train = train_number.lstrip('0') or '0'
+                    cache_key_clean = (clean_train, coach)
+                    contact_info = support_contact_cache.get(cache_key_clean, {'phone': '', 'name': '', 'support_contact_ut': ''})
+
+                # Extract phone, name, and support_contact_ut from contact_info
+                support_contact = contact_info.get('phone', '')
+                support_contact_name = contact_info.get('name', '')
+                support_contact_ut = contact_info.get('support_contact_ut', '')
+
+                # Debug log if still not found
+                if not support_contact:
+                    logger.warning(f"No support contact found for train={train_number}, coach={coach}")
+                    # Log what keys we tried
+                    logger.debug(f"Tried keys: {cache_key}, {cache_key_with_zero if 'cache_key_with_zero' in locals() else 'N/A'}, {cache_key_clean if 'cache_key_clean' in locals() else 'N/A'}")
+
+            complaint['support_contact'] = support_contact
+            complaint['support_contact_name'] = support_contact_name
+            complaint['support_contact_ut'] = support_contact_ut
+
+        logger.info(f"Successfully processed {len(complaints)} complaints")
         return complaints
         
     except Exception as e:
-        logger.error(f"Database error in get_complaints_by_date_and_mobile: {str(e)}")
+        logger.error(f"Database error: {str(e)}")
         raise e
     finally:
         conn.close()
