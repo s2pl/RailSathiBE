@@ -624,8 +624,8 @@ def get_support_contacts_for_complaints(
     Fetch support contacts for the specific train+coach combinations.
 
     Logic:
-    - If coach starts with A, B, M, G, H, C → exact coach match required
-    - For other coaches (S, D, E, etc.) → find EHK user for that train+date (no coach match needed)
+    - For ALL coaches → fetch EHK user for that train+date
+    - For coaches starting with A, B, M, G, H, C → ALSO fetch CA (assigned user) in exact coach
 
     Args:
         conn: Database connection
@@ -633,7 +633,8 @@ def get_support_contacts_for_complaints(
         train_coach_pairs: Set of (train_number, coach) tuples from actual complaints
 
     Returns:
-        Dictionary with (train_number, coach) as key and dict with 'phone' and 'name' as value
+        Dictionary with (train_number, coach) as key and dict with support contact details:
+        {'ehk_name': str, 'ehk_phone': str, 'ca_name': str, 'ca_phone': str}
     """
     cache = {}
     
@@ -815,10 +816,11 @@ def get_support_contacts_for_complaints(
                             
                             # Just check coach/user type directly
                             coach_numbers = access.get("coach_numbers", [])
-                            
-                            # Store in exact_coach_cache for exact matching (A, B, M, G, H, C coaches)
-                            for coach in coach_numbers:
-                                coach_upper = str(coach).strip().upper()
+
+                            # Store in exact_coach_cache ONLY if user is assigned to exactly ONE coach
+                            # This ensures CA users are dedicated to a single coach
+                            if len(coach_numbers) == 1:
+                                coach_upper = str(coach_numbers[0]).strip().upper()
 
                                 # Add to exact coach cache
                                 key1 = (train_no_str, coach_upper)
@@ -865,55 +867,40 @@ def get_support_contacts_for_complaints(
             train_no_str = str(train_no).strip()
             clean_train = train_no_str.lstrip('0') or '0'
 
-            support_contact_info = {'phone': '', 'name': '', 'support_contact_ut': ''}
+            # Initialize support contact info with all fields
+            support_contact_info = {
+                'ehk_name': '',
+                'ehk_phone': '',
+                'ca_name': '',
+                'ca_phone': ''
+            }
 
-            # Check if coach requires exact matching (starts with A, B, M, G, H, C)
+            # ALWAYS fetch EHK details for ALL coaches
+            ehk_entry = ehk_train_cache.get(train_no_str) or ehk_train_cache.get(clean_train)
+            if ehk_entry:
+                ehk_contact_data = ehk_entry[0]
+                support_contact_info['ehk_name'] = ehk_contact_data.get('name', '')
+                support_contact_info['ehk_phone'] = ehk_contact_data.get('phone', '')
+                logger.debug(f"EHK contact found for train={train_no_str}, coach={coach_upper}")
+            else:
+                logger.warning(f"No EHK contact found for train={train_no_str}, coach={coach_upper}")
+
+            # For exact match coaches (A, B, M, G, H, C), ALSO fetch CA details
             if coach_upper.startswith(EXACT_MATCH_COACH_PREFIXES):
-                # Exact coach match required
                 key1 = (train_no_str, coach_upper)
                 key2 = (clean_train, coach_upper)
 
-                contact_data = exact_coach_cache.get(key1) or exact_coach_cache.get(key2) or {'phone': '', 'name': ''}
-                support_contact_info = {
-                    'phone': contact_data.get('phone', ''),
-                    'name': contact_data.get('name', ''),
-                    'support_contact_ut': 'CA'
-                }
-                logger.info(f"Cache contains key ('12333', 'A1'): {('12333', 'A1') in exact_coach_cache}")
-                logger.info(f"Cache contains key ('12333', 'A1'): {exact_coach_cache.get(('12333', 'A1'), 'NOT FOUND')}")
-                logger.info(f"STEP4 exact match lookup: key1={key1}, key2={key2}, "
-                       f"exact_cache.get(key1)={exact_coach_cache.get(key1, 'MISS')}, "
-                       f"exact_cache.get(key2)={exact_coach_cache.get(key2, 'MISS')}, "
-                       f"final support_contact_info={support_contact_info!r}")
-
-
-                if support_contact_info.get('phone'):
-                    logger.debug(f"Exact match found for train={train_no_str}, coach={coach_upper}")
-            else:
-                # For other coaches (S, D, E, etc.) - find EHK user for train (no coach match)
-                ehk_entry = ehk_train_cache.get(train_no_str) or ehk_train_cache.get(clean_train)
-                contact_data = ehk_entry[0] if ehk_entry else {'phone': '', 'name': ''}
-                support_contact_info = {
-                    'phone': contact_data.get('phone', ''),
-                    'name': contact_data.get('name', ''),
-                    'support_contact_ut': 'EHK'
-                }
-
-                if not support_contact_info.get('phone'):
-                    logger.warning(f"No EHK match for train={train_no_str}, coach={coach_upper}")
-
-                if support_contact_info.get('phone'):
-                    logger.debug(f"EHK match found for train={train_no_str}, coach={coach_upper}, contact={support_contact_info}")
+                ca_contact_data = exact_coach_cache.get(key1) or exact_coach_cache.get(key2)
+                if ca_contact_data:
+                    support_contact_info['ca_name'] = ca_contact_data.get('name', '')
+                    support_contact_info['ca_phone'] = ca_contact_data.get('phone', '')
+                    logger.debug(f"CA contact found for train={train_no_str}, coach={coach_upper}")
                 else:
-                    logger.warning(f"No EHK match for train={train_no_str}, coach={coach_upper}")
+                    logger.debug(f"No CA contact found for train={train_no_str}, coach={coach_upper}")
 
-            # Store in final cache
+            # Store in final cache with all normalized train number variations
             cache[(train_no_str, coach_upper)] = support_contact_info
             cache[(clean_train, coach_upper)] = support_contact_info
-
-            if train_no_str == '12333' and coach_upper == 'A1':
-                logger.info(f"STEP4 storing cache[('12333', 'A1')] = {support_contact_info!r}")
-
             if not train_no_str.startswith('0'):
                 cache[('0' + train_no_str, coach_upper)] = support_contact_info
         
@@ -924,8 +911,9 @@ def get_support_contacts_for_complaints(
             logger.debug(f"Sample cache keys: {sample_keys}")
 
         # Log some sample matches for debugging
-        matched_count = sum(1 for v in cache.values() if v.get('phone'))
-        logger.info(f"Complaints with support_contact: {matched_count}/{len(cache)}")
+        matched_ehk_count = sum(1 for v in cache.values() if v.get('ehk_phone'))
+        matched_ca_count = sum(1 for v in cache.values() if v.get('ca_phone'))
+        logger.info(f"Complaints with EHK contact: {matched_ehk_count}/{len(cache)}, with CA contact: {matched_ca_count}/{len(cache)}")
         
         return cache
         
@@ -1078,45 +1066,41 @@ def get_complaints_by_date_and_mobile(complain_create_date: date, mobile_number:
             train_number = str(complaint.get('train_number', '')).strip()
             coach = str(complaint.get('coach', '')).strip().upper()
 
-            support_contact = ''
-            support_contact_name = ''
-            support_contact_ut = ''
+            support_contact = {
+                'ehk_name': '',
+                'ehk_phone': '',
+                'ca_name': '',
+                'ca_phone': ''
+            }
+
             if train_number and coach:
                 # Try original train number first
                 cache_key = (train_number, coach)
-                contact_info = support_contact_cache.get(cache_key, {'phone': '', 'name': '', 'support_contact_ut': ''})
-
-                if train_number == '12333' and coach == 'A1':
-                    logger.info(f"STEP5 lookup: cache_key={cache_key}, "
-                               f"support_contact_cache.get({cache_key})={support_contact_cache.get(cache_key, 'MISS')}, "
-                               f"all 12333 keys in cache: {[k for k in support_contact_cache.keys() if '12333' in str(k)]}")
-
+                contact_info = support_contact_cache.get(cache_key)
 
                 # Try with leading zero
-                if not contact_info.get('phone'):
+                if not contact_info:
                     cache_key_with_zero = ('0' + train_number, coach)
-                    contact_info = support_contact_cache.get(cache_key_with_zero, {'phone': '', 'name': '', 'support_contact_ut': ''})
+                    contact_info = support_contact_cache.get(cache_key_with_zero)
 
                 # Try cleaned train number (remove leading zeros)
-                if not contact_info.get('phone'):
+                if not contact_info:
                     clean_train = train_number.lstrip('0') or '0'
                     cache_key_clean = (clean_train, coach)
-                    contact_info = support_contact_cache.get(cache_key_clean, {'phone': '', 'name': '', 'support_contact_ut': ''})
+                    contact_info = support_contact_cache.get(cache_key_clean)
 
-                # Extract phone, name, and support_contact_ut from contact_info
-                support_contact = contact_info.get('phone', '')
-                support_contact_name = contact_info.get('name', '')
-                support_contact_ut = contact_info.get('support_contact_ut', '')
-
-                # Debug log if still not found
-                if not support_contact:
+                # If contact info found, use it
+                if contact_info:
+                    support_contact = {
+                        'ehk_name': contact_info.get('ehk_name', ''),
+                        'ehk_phone': contact_info.get('ehk_phone', ''),
+                        'ca_name': contact_info.get('ca_name', ''),
+                        'ca_phone': contact_info.get('ca_phone', '')
+                    }
+                else:
                     logger.warning(f"No support contact found for train={train_number}, coach={coach}")
-                    # Log what keys we tried
-                    logger.debug(f"Tried keys: {cache_key}, {cache_key_with_zero if 'cache_key_with_zero' in locals() else 'N/A'}, {cache_key_clean if 'cache_key_clean' in locals() else 'N/A'}")
 
             complaint['support_contact'] = support_contact
-            complaint['support_contact_name'] = support_contact_name
-            complaint['support_contact_ut'] = support_contact_ut
 
         logger.info(f"Successfully processed {len(complaints)} complaints")
         return complaints

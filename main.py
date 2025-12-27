@@ -112,6 +112,13 @@ class RailSathiComplainGetData(BaseModel):
     train_depot: Optional[str] = None
     rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse] = []
 
+class SupportContactData(BaseModel):
+    """Nested model for support contact details"""
+    ehk_name: Optional[str] = ""
+    ehk_phone: Optional[str] = ""
+    ca_name: Optional[str] = ""
+    ca_phone: Optional[str] = ""
+
 class RSComplainUnsecuredGetData(BaseModel):
     """Data model for unsecured complaint endpoint with support_contact"""
     complain_id: int
@@ -134,9 +141,7 @@ class RSComplainUnsecuredGetData(BaseModel):
     updated_by: Optional[str] = None
     train_depot: Optional[str] = None
     rail_sathi_complain_media_files: List[RailSathiComplainMediaResponse] = []
-    support_contact: Optional[str] = ""  # <-- Support contact field
-    support_contact_name: Optional[str] = ""  # <-- Support contact name field
-    support_contact_ut: Optional[str] = ""  # <-- Support contact utils field
+    support_contact: SupportContactData = SupportContactData()
 
 
 class RSComplainUnsecuredGetResponse(BaseModel):
