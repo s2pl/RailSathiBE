@@ -116,8 +116,12 @@ class SupportContactData(BaseModel):
     """Nested model for support contact details"""
     ehk_name: Optional[str] = ""
     ehk_phone: Optional[str] = ""
-    ca_name: Optional[str] = ""
-    ca_phone: Optional[str] = ""
+    ca_name: Optional[str] = None  # Only present for exact-match coaches (A, B, M, G, H, C)
+    ca_phone: Optional[str] = None  # Only present for exact-match coaches (A, B, M, G, H, C)
+
+    class Config:
+        # Exclude None values from response to omit CA fields for non-prefixed coaches
+        exclude_none = True
 
 class RSComplainUnsecuredGetData(BaseModel):
     """Data model for unsecured complaint endpoint with support_contact"""

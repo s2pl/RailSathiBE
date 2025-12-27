@@ -817,9 +817,9 @@ def get_support_contacts_for_complaints(
                             # Just check coach/user type directly
                             coach_numbers = access.get("coach_numbers", [])
 
-                            # Store in exact_coach_cache ONLY if user is assigned to exactly ONE coach
-                            # This ensures CA users are dedicated to a single coach
-                            if len(coach_numbers) == 1:
+                            # Store in exact_coach_cache ONLY if user is assigned to exactly ONE coach AND user_type is CA
+                            # This ensures CA users are dedicated to a single coach and have the correct user type
+                            if len(coach_numbers) == 1 and user_type == 'CA':
                                 coach_upper = str(coach_numbers[0]).strip().upper()
 
                                 # Add to exact coach cache
@@ -1066,12 +1066,19 @@ def get_complaints_by_date_and_mobile(complain_create_date: date, mobile_number:
             train_number = str(complaint.get('train_number', '')).strip()
             coach = str(complaint.get('coach', '')).strip().upper()
 
+            # Check if coach requires exact matching (for CA fields)
+            is_exact_match_coach = coach.startswith(EXACT_MATCH_COACH_PREFIXES) if coach else False
+
+            # Initialize support_contact with EHK fields (always present)
             support_contact = {
                 'ehk_name': '',
-                'ehk_phone': '',
-                'ca_name': '',
-                'ca_phone': ''
+                'ehk_phone': ''
             }
+
+            # Add CA fields only for exact-match coaches
+            if is_exact_match_coach:
+                support_contact['ca_name'] = ''
+                support_contact['ca_phone'] = ''
 
             if train_number and coach:
                 # Try original train number first
@@ -1091,12 +1098,13 @@ def get_complaints_by_date_and_mobile(complain_create_date: date, mobile_number:
 
                 # If contact info found, use it
                 if contact_info:
-                    support_contact = {
-                        'ehk_name': contact_info.get('ehk_name', ''),
-                        'ehk_phone': contact_info.get('ehk_phone', ''),
-                        'ca_name': contact_info.get('ca_name', ''),
-                        'ca_phone': contact_info.get('ca_phone', '')
-                    }
+                    support_contact['ehk_name'] = contact_info.get('ehk_name', '')
+                    support_contact['ehk_phone'] = contact_info.get('ehk_phone', '')
+
+                    # Include CA fields only for exact-match coaches
+                    if is_exact_match_coach:
+                        support_contact['ca_name'] = contact_info.get('ca_name', '')
+                        support_contact['ca_phone'] = contact_info.get('ca_phone', '')
                 else:
                     logger.warning(f"No support contact found for train={train_number}, coach={coach}")
 
