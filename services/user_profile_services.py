@@ -768,7 +768,8 @@ async def login_otp_verify(data: OTPVerifyRequest):
     if not user_data:
         return JSONResponse(status_code=200,
             content={
-                "status": "NEED_USERNAME",
+                "userExists": False,
+                "needRegistration": True,
                 "message": "User not found. Please enter username to complete signup.",
                 "phone": phone
             }
@@ -814,6 +815,8 @@ async def login_otp_verify(data: OTPVerifyRequest):
     refresh_token = create_refresh_token({"user_id": user['id']})
 
     return JSONResponse({
+        "userExists": True,
+        "needRegistration": False,
         "message": "Logged in successfully",
         "access_token": access_token,
         "refresh_token": refresh_token,
