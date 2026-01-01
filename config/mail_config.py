@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     USE_CREDENTIALS: bool = True
     VALIDATE_CERTS: bool = True
     
+    # Notification Microservice Configuration
+    NOTIFICATION_SERVICE_URL: str = "https://railopsapi.suvidhaen.com/notification_microservice/send-email"
+    
     # Database configuration
     postgres_host: str
     postgres_port: str = "5432"

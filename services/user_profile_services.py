@@ -6,7 +6,7 @@ from passlib.hash import django_pbkdf2_sha256
 from passlib.context import CryptContext
 import logging, redis
 from datetime import datetime, date, time , timedelta, timezone
-from utils.email_utils import send_plain_mail
+from utils.email_utils import send_plain_mail, send_email_via_ms
 import random, uuid, re, os, requests, time
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
@@ -878,18 +878,28 @@ async def send_email_otp(data: EmailOTPRequest, current_user: dict = Depends(get
 
         # Send email
         subject = "Your RailSathi Email OTP"
-        message = f"""
+        context = {
+            "otp": otp,
+            "subject": subject
+        }
+        
+        # Try sending via MS first
+        if not send_email_via_ms(data.email, "railsathi/email_otp_verification.txt", context):
+            # Fallback to Django
+            message = f"""
         Dear User,
 
         Your OTP for email verification is: {otp}
 
         This OTP is valid for 10 minutes.
         """
-
-        mail_sent = send_plain_mail(subject, message, from_=os.getenv("MAIL_FROM"), to=[data.email])
-
-        if not mail_sent:
-            raise HTTPException(status_code=500, detail="Failed to send OTP email")
+            mail_sent = send_plain_mail(subject, message, from_=os.getenv("MAIL_FROM"), to=[data.email])
+            logging.info("Email sent via Django fallback")
+            
+            if not mail_sent:
+                raise HTTPException(status_code=500, detail="Failed to send OTP email")
+        else:
+            logging.info("Email sent via MS")
 
         return {"message": "OTP sent successfully", "session_id": session_id}
 
