@@ -366,13 +366,16 @@ async def signup_with_username(data: SignupWithUsernameRequest):
         return JSONResponse(
             status_code=201,
             content={
+                "userExists": True,
+                "needRegistration": False,
                 "message": "Passenger registered and logged in successfully",
                 "access_token": access_token,
                 "refresh_token": refresh_token,
                 "username": new_user["username"],
                 "number": new_user["number"],
-                "Whatsapp_number": new_user["number"],
-                "email": new_user["email"],
+                "first_name": first_name,
+                "middle_name": middle_name,
+                "last_name": last_name,
                 "created_at": new_user["created_at"].isoformat(),
                 "token_type": "bearer"
             }
