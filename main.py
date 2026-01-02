@@ -18,7 +18,7 @@ from utils.complaint_enrichment import enrich_complaint_response_and_trigger_ema
 
 import os
 from dotenv import load_dotenv
-from utils.email_utils import send_plain_mail
+from utils.email_utils import send_plain_mail, send_email_via_ms
 
 
 app = FastAPI(
@@ -400,14 +400,42 @@ async def create_complaint_endpoint_threaded(
                     subject = f"{train_number} ({train_depot_name} No War Room User RailSathi(WRUR) Found !"  
                 else:
                     subject = f"LOCAL | {train_number} ({train_depot_name} No War Room User RailSathi(WRUR) Found !"
-                    
-                message = f"""
+                
+                # Prepare context for MS template
+                context = {
+                    "pnr_number": pnr_number,
+                    "train_number": train_number,
+                    "coach": coach,
+                    "berth_no": berth_no,
+                    "date_of_journey": date_of_journey,
+                    "train_depot_name": train_depot_name,
+                    "subject": subject,
+                    "product_name": "RailSathi"
+                }
+                
+                load_dotenv()
+                from_ = os.getenv("MAIL_FROM")
+                to = ["contact@suvidhaen.com"]
+                
+                # Try sending via MS first
+                if not send_email_via_ms(to[0], "railsathi/war_room_missing_alert.txt", context):
+                    # Fallback to Django
+                    message = f"""
                 No War Room User RailSathi (WRUR) exists for PNR Number: {pnr_number} in Train Number: {train_number} travelling on {date_of_journey}
                 in {coach}/{berth_no} 
                 Train Depot: {train_depot_name} 
                 
                 Kindly verify the WRUR assignment to the given train depot.
                 """
+                    success = send_plain_mail(
+                        subject=subject,
+                        message=message,
+                        from_=from_,
+                        to=to
+                    )
+                    logging.info("Email sent via Django fallback")
+                else:
+                    logging.info("Email sent via MS")
                 
                 # Send email using the plain mail function
                 

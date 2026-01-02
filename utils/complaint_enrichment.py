@@ -2,7 +2,7 @@ from datetime import datetime
 import os
 import logging
 from database import get_db_connection, execute_query
-from utils.email_utils import send_plain_mail
+from utils.email_utils import send_plain_mail, send_email_via_ms
 from services.unauth_api_services import get_complaint_by_id
 
 logger = logging.getLogger(__name__)
@@ -69,21 +69,38 @@ async def enrich_complaint_response_and_trigger_email(
             subject = base_subject #Remove PROD prefix
         else:
             subject = f"{env} | {base_subject}"
-            
-        message = f"""
+        
+        context = {
+            "pnr_number": pnr_number,
+            "train_number": train_number,
+            "coach": coach,
+            "berth_no": berth_no,
+            "date_of_journey": date_of_journey,
+            "train_depot_name": train_depot_name,
+            "subject": subject,
+            "product_name": "RailSathi"
+        }
+        
+        try:
+            # Try sending via MS first
+            if not send_email_via_ms("harshnmishra01@gmail.com", "railsathi/war_room_missing_alert.txt", context):
+                # Fallback to Django
+                message = f"""
         No War Room User RailSathi (WRUR) exists for PNR Number: {pnr_number} in Train Number: {train_number}
         Coach/Berth: {coach}/{berth_no} on {date_of_journey}
         Train Depot: {train_depot_name}
 
         Kindly verify the WRUR assignment to the given train depot.
         """
-        try:
-            send_plain_mail(
-                subject=subject,
-                message=message,
-                from_=os.getenv("MAIL_FROM"),
-                to=["harshnmishra01@gmail.com"]
-            )
+                send_plain_mail(
+                    subject=subject,
+                    message=message,
+                    from_=os.getenv("MAIL_FROM"),
+                    to=["harshnmishra01@gmail.com"]
+                )
+                logger.info("Email sent via Django fallback")
+            else:
+                logger.info("Email sent via MS")
         except Exception as e:
             logger.error(f"[Email Error] Could not send fallback WRUR email: {str(e)}")
 

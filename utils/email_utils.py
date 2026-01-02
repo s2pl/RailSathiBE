@@ -1,7 +1,7 @@
 import logging
 import asyncio
 from fastapi_mail import FastMail, MessageSchema
-from config.mail_config import conf
+from config.mail_config import conf, settings
 from jinja2 import Template
 from typing import Dict, List
 import os
@@ -12,12 +12,52 @@ import pytz
 import json
 from utils.notification_utils import send_passenger_complaint_notification_in_thread , send_passenger_complaint_push_and_in_app_in_thread
 from utils.train_journey_utils import is_user_assigned_on_journey_date
+import requests
+from requests.exceptions import Timeout, RequestException
 
 EMAIL_SENDER = conf.MAIL_FROM
 
 os.makedirs("logs", exist_ok=True)
 
 logger = logging.getLogger(__name__)
+
+# Notification Microservice Configuration
+NOTIFICATION_SERVICE_URL = settings.NOTIFICATION_SERVICE_URL
+
+def send_email_via_ms(email: str, template_name: str, context: dict) -> bool:
+    """
+    Send email via notification microservice.
+    Returns True if email sent successfully, False otherwise.
+    """
+    try:
+        payload = {
+            "email": email,
+            "template_name": template_name,
+            "context": context
+        }
+        
+        response = requests.post(
+            NOTIFICATION_SERVICE_URL,
+            json=payload,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            logging.info(f"Email sent via MS to {email} using template {template_name}")
+            return True
+        else:
+            logging.error(f"MS returned status {response.status_code}: {response.text}")
+            return False
+            
+    except Timeout:
+        logging.error(f"Timeout calling notification microservice for {email}")
+        return False
+    except RequestException as e:
+        logging.error(f"Error calling notification microservice: {repr(e)}")
+        return False
+    except Exception as e:
+        logging.error(f"Unexpected error in send_email_via_ms: {repr(e)}")
+        return False
 logger.setLevel(logging.INFO)  # Capture everything at least INFO level
 
 if not logger.handlers:
@@ -416,8 +456,63 @@ def send_passenger_complain_notifications(complain_details: Dict):
         primary_recipient = [unique_emails[0]]
         cc_recipients = unique_emails[1:] if len(unique_emails) > 1 else []
         
+        # Add subject to context for MS template
+        context['subject'] = subject
+        context['product_name'] = "RailSathi"
+        
         try:
-            success = send_plain_mail(subject, message, EMAIL_SENDER, primary_recipient, cc_recipients)
+            # Try sending via notification microservice first
+            if not send_email_via_ms(primary_recipient[0], "railsathi/complaint_creation.txt", context):
+                # Fallback to Django if MS fails
+                template_path = os.path.join("templates", "complaint_creation_email_template.txt")
+                
+                if not os.path.exists(template_path):
+                    template_content = """
+                Passenger Complaint Submitted
+
+                A new passenger complaint has been received.
+
+                Complaint ID   : {{ complain_id }}
+                Submitted At  : {{ created_at }}
+
+                Passenger Info:
+                ---------------
+                Name           : {{ passenger_name }}
+                Phone Number   : {{ user_phone_number }}
+
+                Travel Details:
+                ---------------
+                Train Number   : {{ train_no }}
+                Train Name     : {{ train_name }}
+                Coach          : {{ coach }}
+                Berth Number   : {{ berth }}
+                PNR            : {{ pnr }}
+
+                Complaint Details:
+                ------------------
+                Description    : {{ description }}
+
+                Train Depot    : {{ train_depo }}
+                
+                Please take necessary action at the earliest.
+
+                This is an automated notification. Please do not reply to this email.
+
+                Regards,  
+                Team RailSathi
+            """
+                else:
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        template_content = f.read()
+                
+                template = Template(template_content)
+                message = template.render(context)
+                
+                success = send_plain_mail(subject, message, EMAIL_SENDER, primary_recipient, cc_recipients)
+                logging.info("Email sent via Django fallback")
+            else:
+                success = True
+                logging.info("Email sent via MS")
             if success:
                 logging.info(f"Email sent for complaint {complain_details['complain_id']} to {len(unique_emails)} recipients")
                 logging.info(f"Primary recipient: {primary_recipient[0]}")
