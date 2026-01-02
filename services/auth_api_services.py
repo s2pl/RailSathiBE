@@ -280,7 +280,8 @@ async def create_complaint_endpoint_threaded(
                     "berth_no": berth_no,
                     "date_of_journey": date_of_journey,
                     "train_depot_name": train_depot_name,
-                    "subject": subject
+                    "subject": subject,
+                    "product_name": "RailSathi"
                 }
                 
                 load_dotenv()

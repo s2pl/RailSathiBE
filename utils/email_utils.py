@@ -458,6 +458,7 @@ def send_passenger_complain_notifications(complain_details: Dict):
         
         # Add subject to context for MS template
         context['subject'] = subject
+        context['product_name'] = "RailSathi"
         
         try:
             # Try sending via notification microservice first

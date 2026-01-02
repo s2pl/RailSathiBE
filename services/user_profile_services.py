@@ -880,7 +880,8 @@ async def send_email_otp(data: EmailOTPRequest, current_user: dict = Depends(get
         subject = "Your RailSathi Email OTP"
         context = {
             "otp": otp,
-            "subject": subject
+            "subject": subject,
+            "product_name": "RailSathi"
         }
         
         # Try sending via MS first

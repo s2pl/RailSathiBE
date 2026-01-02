@@ -77,7 +77,8 @@ async def enrich_complaint_response_and_trigger_email(
             "berth_no": berth_no,
             "date_of_journey": date_of_journey,
             "train_depot_name": train_depot_name,
-            "subject": subject
+            "subject": subject,
+            "product_name": "RailSathi"
         }
         
         try:
