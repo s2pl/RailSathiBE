@@ -296,6 +296,98 @@ async def signup(data: SignupRequest):
     finally:
         conn.close()
 
+class SignupWithUsernameRequest(BaseModel):
+    phone: str
+    username: str
+    fcm_token: Optional[str] = None
+
+@router.post("/signup-with-username")
+async def signup_with_username(data: SignupWithUsernameRequest):
+    """
+    Signup flow after OTP verification.
+    Creates user if mobile does not exist in database.
+    """
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        phone = data.phone.strip()
+        raw_username = data.username.strip().lower()
+        
+        if not phone or not raw_username:
+            raise HTTPException(status_code=400, detail="phone and username are required")
+        
+        if not re.match(r'^[1-9]\d{9}$', phone):
+            raise HTTPException(status_code=400, detail="Invalid phone number")
+        
+        name_parts = raw_username.split()
+
+        first_name = name_parts[0]
+        middle_name = None
+        last_name = ""
+        
+        if len(name_parts) == 2:
+            last_name = name_parts[1]
+        elif len(name_parts) >= 3:
+            middle_name = name_parts[1]
+            last_name = " ".join(name_parts[2:])
+        
+        final_username = f"{first_name}_{phone}"
+        
+        email = f"noemail.{phone}@gmail.com"
+        now = datetime.now(timezone.utc)
+
+        hashed_password = pwd_context.hash(data.phone)
+        
+        cur.execute("""
+            INSERT INTO user_onboarding_user
+            (first_name, middle_name, last_name, username, email, phone, password,
+             created_at, created_by, updated_at, updated_by, is_active, staff, railway_admin, enabled,
+             user_type_id, user_status)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,TRUE,FALSE,FALSE,TRUE,11,'enabled')
+            RETURNING id, username, phone AS number, email, created_at
+        """, (first_name, middle_name, last_name, final_username, email, phone, 
+            hashed_password, now, final_username, now, final_username))
+        
+        new_user = cur.fetchone()
+        conn.commit()
+        
+        # Save FCM token if provided
+        if data.fcm_token:
+            execute_query(
+                conn,
+                "UPDATE user_onboarding_user SET fcm_token=%s, updated_at=NOW() WHERE id=%s",
+                (data.fcm_token, new_user['id'],)
+            )
+        
+        access_token = create_access_token({"user_id": new_user["id"]})
+        refresh_token = create_refresh_token({"user_id": new_user["id"]})
+        
+        return JSONResponse(
+            status_code=201,
+            content={
+                "userExists": True,
+                "needRegistration": False,
+                "message": "Passenger registered and logged in successfully",
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "username": new_user["username"],
+                "number": new_user["number"],
+                "first_name": first_name,
+                "middle_name": middle_name,
+                "last_name": last_name,
+                "created_at": new_user["created_at"].isoformat(),
+                "token_type": "bearer"
+            }
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("Signup with username failed")
+        raise HTTPException(status_code=500, detail="Signup failed")
+    finally:
+        conn.close()
 
 class SigninRequest(BaseModel):
     phone: str
@@ -592,14 +684,13 @@ async def login_otp_send(data: OTPRequest):
         "SELECT * FROM user_onboarding_user WHERE phone = %s",
         (data.phone_number,)
     )
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
 
-    user_data = user[0]
+    if user:
+        user_data = user[0]
 
-    # Check user status
-    if user_data['user_status'] in {"disabled", "suspended", "blocked"}:
-        raise HTTPException(status_code=400, detail=f"User is {user_data['user_status']}")
+        # Check user status
+        if user_data['user_status'] != "enabled":
+            raise HTTPException(status_code=400, detail=f"User is not enabled.")
 
     now = datetime.now()
 
@@ -676,8 +767,16 @@ async def login_otp_verify(data: OTPVerifyRequest):
         "SELECT * FROM user_onboarding_user WHERE phone = %s",
         (phone,)
     )
+    
     if not user_data:
-        raise HTTPException(status_code=404, detail="User not found")
+        return JSONResponse(status_code=200,
+            content={
+                "userExists": False,
+                "needRegistration": True,
+                "message": "User not found. Please enter username to complete signup.",
+                "phone": phone
+            }
+        )
 
     user = user_data[0]
     timestamp = datetime.utcnow()
@@ -710,8 +809,8 @@ async def login_otp_verify(data: OTPVerifyRequest):
             (timestamp, login_history[0]['id'])
         )
 
-    if user['user_status'] in {"disabled", "suspended", "blocked"}:
-        raise HTTPException(status_code=400, detail=f"User is {user['user_status']}")
+    if user['user_status'] != "enabled":
+        raise HTTPException(status_code=400, detail=f"User is not enabled.")
 
 
     # JWT tokens
@@ -719,6 +818,8 @@ async def login_otp_verify(data: OTPVerifyRequest):
     refresh_token = create_refresh_token({"user_id": user['id']})
 
     return JSONResponse({
+        "userExists": True,
+        "needRegistration": False,
         "message": "Logged in successfully",
         "access_token": access_token,
         "refresh_token": refresh_token,
